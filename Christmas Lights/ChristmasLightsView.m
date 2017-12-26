@@ -2,11 +2,17 @@
 #include "effects.h"
 #include <math.h>
 
-static const CGFloat kLEDSize = 5.0;
+static const NSTimeInterval kAnimationStepTime = 0.1;
+
+static const CGFloat kLEDSize = 8.0;
 
 @implementation ChristmasLightsView {
     NSArray<UIView *> *_lights;
     NSArray<UIColor *> *_palette;
+    uint8_t *_pixels;
+    NSDate *_startDate;
+    CADisplayLink *_displayLink;
+    uint32_t _prevTime;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -19,13 +25,32 @@ static const CGFloat kLEDSize = 5.0;
         NSMutableArray<UIView *> *lights = [NSMutableArray new];
         for (NSInteger i = 0; i < kLEDCount; ++i) {
             UIView *led = [UIView new];
-            led.backgroundColor = _palette[i % _palette.count];
+            led.layer.cornerRadius = kLEDSize / 2;
             [self addSubview:led];
             [lights addObject:led];
         }
         _lights = [lights copy];
+        
+        _pixels = malloc(sizeof(uint8_t) * kLEDCount);
+        _prevTime = UINT32_MAX;
     }
     return self;
+}
+
+- (void)didMoveToWindow {
+    if (self.window != nil) {
+        _startDate = [NSDate date];
+        for (int i = 0; i < kLEDCount; i++) {
+            _pixels[i] = 0;
+        }
+        if (_displayLink == nil) {
+            _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(drawNextFrame:)];
+            [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
+        }
+    } else {
+        [_displayLink invalidate];
+        _displayLink = nil;
+    }
 }
 
 - (void)layoutSubviews {
@@ -88,6 +113,30 @@ static const CGFloat kLEDSize = 5.0;
         CGFloat spacing = (remainingCount <= 1 ? 0 : floor((remainingHeight - remainingCount * kLEDSize) / (remainingCount - 1)));
         y += kLEDSize + spacing;
         remainingHeight -= kLEDSize + spacing;
+    }
+}
+
+- (void)drawNextFrame:(CADisplayLink *)sender {
+    if (_startDate == nil) {
+        return;
+    }
+    NSTimeInterval elapsed = [[NSDate date] timeIntervalSinceDate:_startDate];
+    
+    uint32_t t = (uint32_t)floor(elapsed / kAnimationStepTime);
+    if (t == _prevTime) {
+        return;
+    }
+    _prevTime = t;
+
+    NSLog(@"drawNextFrame t=%lu", (unsigned long)t);
+    effects_get(t, _pixels);
+    [self displayPixels];
+}
+
+- (void)displayPixels {
+    for (NSInteger i = 0; i < kLEDCount; ++i) {
+        UIView *led = _lights[i];
+        led.backgroundColor = _palette[_pixels[i]];
     }
 }
 
