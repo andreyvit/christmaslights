@@ -20,7 +20,7 @@ static const CGFloat kLEDSize = 8.0;
     if (self) {
 //        self.backgroundColor = [UIColor redColor];
         
-        _palette = @[[UIColor blueColor], [UIColor yellowColor], [UIColor greenColor], [UIColor redColor]];
+        _palette = @[[UIColor blackColor], [UIColor blueColor], [UIColor yellowColor], [UIColor greenColor], [UIColor redColor]];
         
         NSMutableArray<UIView *> *lights = [NSMutableArray new];
         for (NSInteger i = 0; i < kLEDCount; ++i) {
@@ -43,6 +43,7 @@ static const CGFloat kLEDSize = 8.0;
         for (int i = 0; i < kLEDCount; i++) {
             _pixels[i] = 0;
         }
+        effects_reset();
         if (_displayLink == nil) {
             _displayLink = [CADisplayLink displayLinkWithTarget:self selector:@selector(drawNextFrame:)];
             [_displayLink addToRunLoop:[NSRunLoop mainRunLoop] forMode:NSRunLoopCommonModes];
