@@ -285,5 +285,7 @@ void effects_tick(uint8_t *pixels, PARAMS *a_params) {
         continue;
     }
     *a_params = params;
+    a_params->effect = effect_idx;
+    a_params->step = step_idx;
 }
 

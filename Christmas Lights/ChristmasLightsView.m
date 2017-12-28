@@ -13,6 +13,7 @@ static PARAMS params;
     uint8_t *_pixels;
     NSDate *_lastTickDate;
     CADisplayLink *_displayLink;
+    UILabel *_effectLabel;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -21,6 +22,15 @@ static PARAMS params;
 //        self.backgroundColor = [UIColor redColor];
         
         _palette = @[[UIColor blackColor], [UIColor blueColor], [UIColor yellowColor], [UIColor greenColor], [UIColor redColor]];
+        
+        _effectLabel = [UILabel new];
+        _effectLabel.translatesAutoresizingMaskIntoConstraints = false;
+        _effectLabel.textColor = [UIColor whiteColor];
+        [self addSubview:_effectLabel];
+        [NSLayoutConstraint activateConstraints:@[
+            [_effectLabel.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
+            [_effectLabel.topAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.topAnchor constant:30],
+        ]];
         
         NSMutableArray<UIView *> *lights = [NSMutableArray new];
         for (NSInteger i = 0; i < kLEDCount; ++i) {
@@ -145,6 +155,7 @@ static PARAMS params;
         UIView *led = _lights[i];
         led.backgroundColor = _palette[_pixels[i]];
     }
+    _effectLabel.text = [NSString stringWithFormat:@"%02d:%02d", (int)params.effect, (int)params.step];
 }
 
 @end
