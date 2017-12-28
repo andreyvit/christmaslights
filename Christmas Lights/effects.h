@@ -11,6 +11,8 @@
  - nested loops
  - palette rotation
  - palette window
+ - pixels rotation
+ - O_SKIP
  - transition style
  - speed adjustment
  - global palette rotation
