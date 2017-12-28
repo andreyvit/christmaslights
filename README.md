@@ -10,4 +10,9 @@
 * [блок питания на 20 ампер](https://ru.aliexpress.com/item/IMC-Hot-AC-110-220V-DC-5V-20A-100W-Power-Supply-Driver-for-LED-Strip-Light/32633658736.html?spm=a2g0s.9042311.0.0.mrdQ9E)
 * [модули ESP8266 примерно такие](https://ru.aliexpress.com/item/5pcs-Wireless-module-NodeMcu-Lua-WIFI-Internet-of-Things-development-board-based-ESP8266-CP2102-with-pcb/32723715227.html?spm=a2g0s.9042311.0.0.LaNnBG), искать по словам NodeMCU V3
 
-Сейчас в этом репозитории лежит только симулятор эффектов в виде приложения для iOS.
+
+## Структура проекта
+
+* в папке [`Christmas Lights`](Christmas Lights) — симулятор эффектов в виде приложения для iOS
+
+* в папке [`ChristmasLightsController`](ChristmasLightsController) — Arduino-проект, основной код см. в [`ChristmasLightsController.ino`](ChristmasLightsController/ChristmasLightsController.ino).
