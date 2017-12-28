@@ -8,6 +8,12 @@
 
 /*
  TODOs:
+ - nested loops
+ - palette rotation
+ - palette window
+ - transition style
+ - speed adjustment
+ - global palette rotation
  - multiple effects
  - N pixel repeating animations
  - declarative steps
