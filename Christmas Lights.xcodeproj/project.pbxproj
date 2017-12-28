@@ -30,8 +30,8 @@
 		2D7EF97A1FF17D9B007D352C /* main.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = main.m; sourceTree = "<group>"; };
 		2D7EF9811FF17FAD007D352C /* ChristmasLightsView.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ChristmasLightsView.h; sourceTree = "<group>"; };
 		2D7EF9821FF17FAD007D352C /* ChristmasLightsView.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = ChristmasLightsView.m; sourceTree = "<group>"; };
-		2D7EF9841FF17FCA007D352C /* effects.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = effects.h; path = ../controller/effects.h; sourceTree = "<group>"; };
-		2D7EF9851FF17FD4007D352C /* effects.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = effects.c; path = ../controller/effects.c; sourceTree = "<group>"; };
+		2D7EF9841FF17FCA007D352C /* effects.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; name = effects.h; path = ../ChristmasLightsController/effects.h; sourceTree = "<group>"; };
+		2D7EF9851FF17FD4007D352C /* effects.c */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.c; name = effects.c; path = ../ChristmasLightsController/effects.c; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
