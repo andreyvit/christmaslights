@@ -18,8 +18,6 @@ static int loop_count;
 static uint32_t internal_time;
 static uint8_t repeating_pixel_count;
 
-static void effect_0(uint32_t t, uint8_t *pixels);
-
 enum {
     kMaxStepCount = 50,
     kMaxArgCount = 10,
@@ -264,21 +262,8 @@ void effects_exec_tick(uint8_t *pixels) {
 }
 
 void effects_get(uint32_t t, uint8_t *pixels) {
-    switch (effect_idx) {
-        case 0:
-            effect_0(t, pixels);
-            return;
-    }
-    
     while (internal_time < t) {
         internal_time++;
         effects_exec_tick(pixels);
     }
 }
-
-void effect_0(uint32_t t, uint8_t *pixels) {
-    for (int i = 0; i < kLEDCount; i++) {
-        pixels[i] = 1 + (t + i) % kPalletteSize;
-    }
-}
-

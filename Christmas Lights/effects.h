@@ -15,6 +15,7 @@
  - O_SKIP
  - transition style
  - speed adjustment
+ - normalize effects duration
  - global palette rotation
  - multiple effects
  - N pixel repeating animations
