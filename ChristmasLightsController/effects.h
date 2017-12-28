@@ -8,8 +8,6 @@
 
 /*
  TODOs:
- - O_SKIP
- - speed adjustment
  - normalize effects duration
  - pixels rotation
  - palette rotation
@@ -18,13 +16,11 @@
  - palette window
  - transition style
  - global palette rotation
- - multiple effects
- - N pixel repeating animations
- - declarative steps
  - multiple subeffects
  - multiple palettes
  - pixel color transitions
-*/
+ 
+ */
 
 typedef struct {
     uint32_t next_tick_delay_ms;
