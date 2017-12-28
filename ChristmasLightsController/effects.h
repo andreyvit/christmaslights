@@ -8,14 +8,15 @@
 
 /*
  TODOs:
- - nested loops
- - palette rotation
- - palette window
- - pixels rotation
  - O_SKIP
- - transition style
  - speed adjustment
  - normalize effects duration
+ - pixels rotation
+ - palette rotation
+ - nested loops
+ 
+ - palette window
+ - transition style
  - global palette rotation
  - multiple effects
  - N pixel repeating animations

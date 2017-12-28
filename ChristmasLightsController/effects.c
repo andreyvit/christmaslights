@@ -3,6 +3,7 @@
 #include <stdbool.h>
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
+#define MAX(x, y) ((x) > (y) ? (x) : (y))
 
 enum {
     O_END,
@@ -10,11 +11,13 @@ enum {
     O_SET,
     O_LOOP,
     O_NEXT,
+    O_SKIP,
 };
 
 static int effect_idx;
 static int step_idx;
 static int loop_count;
+static int skip_count;
 static uint32_t internal_time;
 static uint8_t repeating_pixel_count;
 
@@ -174,10 +177,7 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
         {O_SET, 0, 4, 0, 0, 0},
         {O_SET, 0, 0, 4, 0, 0},
         {O_SET, 0, 0, 0, 0, 0},
-        {O_SET, 0, 0, 0, 0, 0},
-        {O_SET, 0, 0, 0, 0, 0},
-        {O_SET, 0, 0, 0, 0, 0},
-        {O_SET, 0, 0, 0, 0, 0},
+        {O_SKIP, 4},
         {O_NEXT},
     },
     { // 9
@@ -195,6 +195,14 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
         {O_SET, 0, 1, 2, 3, 4},
         {O_NEXT},
     },
+    { // 10
+        {O_REPEAT_PX, 5},
+        {O_LOOP, 10},
+        {O_SET, 1, 2, 3, 4, 0},
+        {O_SKIP, 4},
+        {O_SET, 0, 1, 2, 3, 4},
+        {O_NEXT},
+    },
 };
 
 #define kEffectCount (sizeof(effects_data)/sizeof(effects_data[0]))
@@ -203,12 +211,14 @@ static void effects_start(int effect) {
     effect_idx = effect;
     step_idx = 0;
     loop_count = 0;
+    skip_count = 0;
     repeating_pixel_count = 0;
 }
 
 void effects_reset(void) {
     internal_time = 0;
-    effects_start(kEffectCount - 1);
+    //effects_start(kEffectCount - 1);
+    effects_start(10);
 }
 
 bool effects_exec_step(uint8_t *pixels) {
@@ -249,6 +259,16 @@ bool effects_exec_step(uint8_t *pixels) {
                 }
             }
             break;
+        case O_SKIP: {
+            if (skip_count == 0) {
+                skip_count = MAX(1, step[1]);
+            }
+            skip_count--;
+            if (skip_count > 0) {
+                step_idx--;
+            }
+            return false;
+        }
         default:
             abort();
     }
