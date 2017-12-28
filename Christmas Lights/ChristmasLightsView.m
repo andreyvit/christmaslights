@@ -5,14 +5,14 @@
 static const NSTimeInterval kAnimationStepTime = 0.25;
 
 static const CGFloat kLEDSize = 8.0;
+static PARAMS params;
 
 @implementation ChristmasLightsView {
     NSArray<UIView *> *_lights;
     NSArray<UIColor *> *_palette;
     uint8_t *_pixels;
-    NSDate *_startDate;
+    NSDate *_lastTickDate;
     CADisplayLink *_displayLink;
-    uint32_t _prevTime;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -32,14 +32,13 @@ static const CGFloat kLEDSize = 8.0;
         _lights = [lights copy];
         
         _pixels = malloc(sizeof(uint8_t) * kLEDCount);
-        _prevTime = UINT32_MAX;
     }
     return self;
 }
 
 - (void)didMoveToWindow {
     if (self.window != nil) {
-        _startDate = [NSDate date];
+        _lastTickDate = [NSDate date];
         for (int i = 0; i < kLEDCount; i++) {
             _pixels[i] = 0;
         }
@@ -118,20 +117,27 @@ static const CGFloat kLEDSize = 8.0;
 }
 
 - (void)drawNextFrame:(CADisplayLink *)sender {
-    if (_startDate == nil) {
+    if (_lastTickDate == nil) {
         return;
     }
-    NSTimeInterval elapsed = [[NSDate date] timeIntervalSinceDate:_startDate];
+    NSDate *now = [NSDate date];
+    NSTimeInterval elapsed = [now timeIntervalSinceDate:_lastTickDate];
     
-    uint32_t t = (uint32_t)floor(elapsed / kAnimationStepTime);
-    if (t == _prevTime) {
-        return;
+    uint32_t ticks;
+    if (params.next_tick_delay_ms == 0) {
+        ticks = 1;
+    } else {
+        ticks = (uint32_t)floor(elapsed / (params.next_tick_delay_ms / 1000.0));
+        if (ticks == 0) {
+            return;
+        }
     }
-    _prevTime = t;
 
-    NSLog(@"drawNextFrame t=%lu", (unsigned long)t);
-    effects_get(t, _pixels);
+    for (; ticks > 0; ticks--) {
+        effects_tick(_pixels, &params);
+    }
     [self displayPixels];
+    _lastTickDate = now;
 }
 
 - (void)displayPixels {

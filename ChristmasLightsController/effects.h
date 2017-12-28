@@ -26,7 +26,11 @@
  - pixel color transitions
 */
 
+typedef struct {
+    uint32_t next_tick_delay_ms;
+} PARAMS;
+
 void effects_reset(void);
-void effects_get(uint32_t t, uint8_t *pixels);
+void effects_tick(uint8_t *pixels, PARAMS *params);
 
 #endif /* effects_h */

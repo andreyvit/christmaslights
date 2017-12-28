@@ -12,14 +12,15 @@ enum {
     O_LOOP,
     O_NEXT,
     O_SKIP,
+    O_SPEED_MS,
 };
 
 static int effect_idx;
 static int step_idx;
 static int loop_count;
 static int skip_count;
-static uint32_t internal_time;
 static uint8_t repeating_pixel_count;
+static PARAMS params;
 
 enum {
     kMaxStepCount = 50,
@@ -135,6 +136,7 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
     },
     { // 8
         {O_REPEAT_PX, 5},
+        {O_SPEED_MS, 0, 200},
         {O_LOOP, 10},
         {O_SET, 1, 0, 0, 0, 0},
         {O_SET, 0, 1, 0, 0, 0},
@@ -197,9 +199,9 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
     },
     { // 10
         {O_REPEAT_PX, 5},
+        {O_SPEED_MS, 6, 00},
         {O_LOOP, 10},
         {O_SET, 1, 2, 3, 4, 0},
-        {O_SKIP, 4},
         {O_SET, 0, 1, 2, 3, 4},
         {O_NEXT},
     },
@@ -213,10 +215,10 @@ static void effects_start(int effect) {
     loop_count = 0;
     skip_count = 0;
     repeating_pixel_count = 0;
+    params.next_tick_delay_ms = 100;
 }
 
 void effects_reset(void) {
-    internal_time = 0;
     //effects_start(kEffectCount - 1);
     effects_start(10);
 }
@@ -269,21 +271,19 @@ bool effects_exec_step(uint8_t *pixels) {
             }
             return false;
         }
+        case O_SPEED_MS:
+            params.next_tick_delay_ms = (uint32_t)step[1] * 100 + step[2];
+            break;
         default:
             abort();
     }
     return true;
 }
 
-void effects_exec_tick(uint8_t *pixels) {
+void effects_tick(uint8_t *pixels, PARAMS *a_params) {
     while (effects_exec_step(pixels)) {
         continue;
     }
+    *a_params = params;
 }
 
-void effects_get(uint32_t t, uint8_t *pixels) {
-    while (internal_time < t) {
-        internal_time++;
-        effects_exec_tick(pixels);
-    }
-}
