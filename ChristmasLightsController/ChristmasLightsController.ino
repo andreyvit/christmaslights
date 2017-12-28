@@ -1,8 +1,10 @@
 #define ENABLE_WIFI 0
 #define ENABLE_SONAR 0
 #define ENABLE_BLUE_TRACE 0
+#define ENABLE_EFFECTS 1
 
 #include "config.h"
+#include "effects.h"
 
 #if ENABLE_WIFI 
 #include <ESP8266WiFi.h>
@@ -28,7 +30,7 @@ enum {
   PIN_SONAR_ECHO = 13, //D7,
 };
 
-const uint16_t PixelCount = 288;
+#define PixelCount 288
 
 #define colorSaturation 255
 
@@ -44,13 +46,7 @@ RgbColor blue(0, 0, colorSaturation);
 RgbColor white(colorSaturation);
 RgbColor black(0);
 
-RgbColor colors[] = {white, red, yellow, blue, green};
-
-HslColor hslRed(red);
-HslColor hslGreen(green);
-HslColor hslBlue(blue);
-HslColor hslWhite(white);
-HslColor hslBlack(black);
+RgbColor colors[] = {black, red, yellow, blue, green};
 
 Timer<150> rotate_timer;
 Timer<500> watchdog_timer;
@@ -64,6 +60,7 @@ Timer<200> blue_trace_timer;
 //WiFiManager wifiManager;
 #endif
 
+#if !ENABLE_EFFECTS
 struct Mover {
   RgbColor color;
   int pos;
@@ -121,6 +118,7 @@ Mover movers[] = {
   {green, PixelCount-11, +1,  8, true},
   {blue,            150, -1,  1, false},
 };
+#endif
 
 void setup()
 {
@@ -166,10 +164,20 @@ void setup()
     blue_trace_timer.start();
   #endif
 
+#if ENABLE_EFFECTS
+    effects_reset();
+#else
     for (int i = 0; i < sizeof(movers)/sizeof(movers[0]); i++) {
       movers[i].start();
     }
+#endif
 }
+
+#if ENABLE_EFFECTS
+uint8_t pixels[PixelCount];
+PARAMS params;
+unsigned long next_tick_time = 0;
+#endif
 
 bool state = false;
 void loop()
@@ -199,6 +207,14 @@ void loop()
     strip.SetPixelColor(i, color);
   }
   strip.SetPixelColor(num_leds+1, blue);
+#elif ENABLE_EFFECTS
+  if (next_tick_time == 0 || now >= next_tick_time) {
+    effects_tick(pixels, &params);
+    for (int i = 0; i < PixelCount; i++) {
+      strip.SetPixelColor(i, colors[pixels[i]]);
+    }
+    next_tick_time = now + params.next_tick_delay_ms;
+  }
 #else
   for (int i = 0; i < PixelCount; i++) {
     strip.SetPixelColor(i, black);
