@@ -13,6 +13,7 @@ enum {
     O_NEXT,
     O_SKIP,
     O_SPEED_MS,
+    O_SPEED_X,
 };
 
 static int effect_idx;
@@ -21,6 +22,8 @@ static int loop_count;
 static int skip_count;
 static uint8_t repeating_pixel_count;
 static PARAMS params;
+
+#define kBaseSpeed 250
 
 enum {
     kMaxStepCount = 50,
@@ -215,7 +218,7 @@ static void effects_start(int effect) {
     loop_count = 0;
     skip_count = 0;
     repeating_pixel_count = 0;
-    params.next_tick_delay_ms = 100;
+    params.next_tick_delay_ms = kBaseSpeed;
 }
 
 void effects_reset(void) {
@@ -273,6 +276,9 @@ bool effects_exec_step(uint8_t *pixels) {
         }
         case O_SPEED_MS:
             params.next_tick_delay_ms = (uint32_t)step[1] * 100 + step[2];
+            break;
+        case O_SPEED_X:
+            params.next_tick_delay_ms = (uint32_t)kBaseSpeed * step[1] / step[2];
             break;
         default:
             abort();
