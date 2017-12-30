@@ -340,7 +340,7 @@ bool effects_exec_step(uint8_t *pixels) {
             loop_depth++;
             loop_counts[loop_depth-1] = step[1];
             break;
-        case O_NEXT:
+        case O_NEXT: {
             if (loop_depth == 0) {
                 abort();
             }
@@ -373,6 +373,7 @@ bool effects_exec_step(uint8_t *pixels) {
                 loop_depth--;
             }
             break;
+        }
         case O_SKIP: {
             if (skip_count == 0) {
                 skip_count = MAX(1, step[1]);
