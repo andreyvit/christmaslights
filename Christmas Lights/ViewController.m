@@ -18,10 +18,10 @@
     [self.view addSubview:_lightsView];
     
     [NSLayoutConstraint activateConstraints:@[
-        [_lightsView.leftAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.leftAnchor constant:10],
-        [_lightsView.rightAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.rightAnchor constant:-10],
-        [_lightsView.topAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.topAnchor constant:10],
-        [_lightsView.bottomAnchor constraintEqualToAnchor:self.view.safeAreaLayoutGuide.bottomAnchor constant:-10],
+        [_lightsView.leftAnchor constraintEqualToAnchor:self.view.leftAnchor constant:10],
+        [_lightsView.rightAnchor constraintEqualToAnchor:self.view.rightAnchor constant:-10],
+        [_lightsView.topAnchor constraintEqualToAnchor:self.view.topAnchor constant:50],
+        [_lightsView.bottomAnchor constraintEqualToAnchor:self.view.bottomAnchor constant:-10],
     ]];
 }
 

@@ -27,7 +27,7 @@ static PARAMS params;
         [self addSubview:_effectLabel];
         [NSLayoutConstraint activateConstraints:@[
             [_effectLabel.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
-            [_effectLabel.topAnchor constraintEqualToAnchor:self.safeAreaLayoutGuide.topAnchor constant:30],
+            [_effectLabel.topAnchor constraintEqualToAnchor:self.topAnchor constant:30],
         ]];
         
         NSMutableArray<UIView *> *lights = [NSMutableArray new];
