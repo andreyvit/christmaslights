@@ -165,7 +165,7 @@ void setup()
     watchdog_timer.start();
 #if ENABLE_BLUE_TRACE
     blue_trace_timer.start();
-  #endif
+#endif
 
 #if ENABLE_EFFECTS
     effects_reset();
