@@ -25,6 +25,9 @@
 #endif
 #include "timer.h"
 
+unsigned loop_timings[32];
+unsigned loop_timing_index;
+
 enum {
   PIN_LED_STRIP = 2,
   PIN_SONAR_TRIG = 15, //D8,
@@ -139,6 +142,13 @@ Mover movers[] = {
 
 #if ENABLE_WIFI 
 void handleRoot(void) {
+  unsigned long timings_sum = 0;
+  int timings_count = sizeof(loop_timings) / sizeof(loop_timings[0]);
+  for (int i = 0; i < timings_count; i++) {
+    timings_sum += loop_timings[i];
+  }
+  unsigned timings_avg = (unsigned)((timings_sum + timings_count/2) / timings_count);
+  
   char temp[400];
   snprintf(temp, sizeof(temp), 
 "<!DOCTYPE html><html><head><meta http-equiv='refresh' content='2' />"
@@ -146,7 +156,8 @@ void handleRoot(void) {
 "<body>"
 "<p>LED count: %d"
 "<p>Effect: %02d (step %02d)"
-"</html>", kLEDCount, params.effect, params.step);
+"<p>Loop time (ms): %d"
+"</html>", kLEDCount, params.effect, params.step, timings_avg);
   temp[sizeof(temp)-1] = 0;
   
   webServer.send (200, "text/html", temp);
@@ -217,6 +228,7 @@ void setup()
 
 bool state = false;
 bool was_connected = false;
+
 void loop()
 {
   unsigned long now = millis();
@@ -303,5 +315,9 @@ void loop()
     digitalWrite(LED_BUILTIN, (state ? HIGH: LOW));
     state = !state;
   }
+
+  unsigned loop_timing = millis() - now;
+  loop_timings[loop_timing_index] = loop_timing;
+  loop_timing_index = (loop_timing_index+1) % (sizeof(loop_timings) / sizeof(loop_timings[0]));
 }
 
