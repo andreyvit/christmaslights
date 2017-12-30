@@ -47,7 +47,16 @@ RgbColor blue(0, 0, colorSaturation);
 RgbColor white(colorSaturation);
 RgbColor black(0);
 
-RgbColor colors[] = {black, red, yellow, blue, green};
+#define HexColor(hex) RgbColor(((uint32_t)(hex) >> 16) & 0xFF, ((uint32_t)(hex) >> 8) & 0xFF, (uint32_t)(hex) & 0xFF)
+
+//RgbColor colors[] = {black, red, yellow, blue, green};
+RgbColor colors[] = {
+  HexColor(0x000000),
+  HexColor(0x1a5e50),
+  HexColor(0xe7878c),
+  HexColor(0xe7d120),
+  HexColor(0x278330)
+};
 
 Timer<150> rotate_timer;
 Timer<500> watchdog_timer;
