@@ -140,7 +140,13 @@ Mover movers[] = {
 #if ENABLE_WIFI 
 void handleRoot(void) {
   char temp[400];
-  snprintf(temp, sizeof(temp), "Effect <b>%02d</b>, step %02d", params.effect, params.step);
+  snprintf(temp, sizeof(temp), 
+"<!DOCTYPE html><html><head><meta http-equiv='refresh' content='2' />"
+"<style>* {margin: 0; padding: 0} body {font: 16px Helvetica, Arial, sans-serif; margin: 2em 4em; } p {margin-top: 0.5em;}</style>"
+"<body>"
+"<p>LED count: %d"
+"<p>Effect: %02d (step %02d)"
+"</html>", kLEDCount, params.effect, params.step);
   temp[sizeof(temp)-1] = 0;
   
   webServer.send (200, "text/html", temp);
