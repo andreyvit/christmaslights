@@ -11,7 +11,6 @@
  - normalize effects duration
  - pixels rotation
  - palette shuffling
- - nested loops
  
  - palette window
  - transition style

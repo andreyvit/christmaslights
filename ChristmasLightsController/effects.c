@@ -18,20 +18,22 @@ enum {
     O_PAL_ROTATE_LEFT,
 };
 
-static int effect_idx;
-static int step_idx;
-static int loop_count;
-static int skip_count;
-static uint8_t palette_rotation;
-static uint8_t repeating_pixel_count;
-static PARAMS params;
-
 #define kBaseSpeed 250
 
 enum {
     kMaxStepCount = 50,
     kMaxArgCount = 10,
+    kMaxLoopDepth = 4,
 };
+
+static int effect_idx;
+static int step_idx;
+static int loop_counts[kMaxLoopDepth];
+static int loop_depth;
+static int skip_count;
+static uint8_t palette_rotation;
+static uint8_t repeating_pixel_count;
+static PARAMS params;
 
 static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
     { // 0
@@ -196,19 +198,12 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
     },
     { // 10
         {O_REPEAT_PX, 2},
-        {O_LOOP, 10},
-        {O_SET, 1, 2},
-        {O_SET, 2, 1},
-        {O_NEXT},
-        {O_PAL_ROTATE_RIGHT, 2},
-        {O_LOOP, 10},
-        {O_SET, 1, 2},
-        {O_SET, 2, 1},
-        {O_NEXT},
-        {O_PAL_ROTATE_RIGHT, 2},
-        {O_LOOP, 10},
-        {O_SET, 1, 2},
-        {O_SET, 2, 1},
+        {O_LOOP, 4},
+            {O_LOOP, 5},
+                {O_SET, 1, 2},
+                {O_SET, 2, 1},
+            {O_NEXT},
+            {O_PAL_ROTATE_RIGHT, 2},
         {O_NEXT},
     },
 };
@@ -218,7 +213,7 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
 static void effects_start(int effect) {
     effect_idx = effect;
     step_idx = 0;
-    loop_count = 0;
+    loop_depth = 0;
     skip_count = 0;
     repeating_pixel_count = 0;
     palette_rotation = 0;
@@ -273,14 +268,33 @@ bool effects_exec_step(uint8_t *pixels) {
             }
             return false;
         case O_LOOP:
-            loop_count = step[1];
+            if (loop_depth + 1 >= kMaxLoopDepth) {
+                abort();
+            }
+            loop_depth++;
+            loop_counts[loop_depth-1] = step[1];
             break;
         case O_NEXT:
-            if (loop_count > 0) {
-                loop_count--;
-                while (step_idx > 0 && effects_data[effect_idx][step_idx-1][0] != O_LOOP) {
-                    step_idx--;
+            if (loop_depth == 0) {
+                abort();
+            }
+            if (loop_counts[loop_depth-1] > 0) {
+                loop_counts[loop_depth-1]--;
+                int nesting = 0;
+                for (step_idx--; step_idx > 0; step_idx--) {
+                    uint8_t op = effects_data[effect_idx][step_idx-1][0];
+                    if (op == O_LOOP) {
+                        if (nesting == 0) {
+                            break;
+                        } else {
+                            nesting--;
+                        }
+                    } else if (op == O_NEXT) {
+                        nesting++;
+                    }
                 }
+            } else {
+                loop_depth--;
             }
             break;
         case O_SKIP: {
