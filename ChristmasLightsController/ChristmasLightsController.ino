@@ -241,7 +241,9 @@ void loop()
     //strip.RotateLeft(1);  
   }
   if (watchdog_timer.fired(now)) {
-//    Serial.println("Alive.");
+#if ENABLE_EFFECTS
+    Serial.printf("Effect %02d step %02d\n", params.effect, params.step);
+#endif
     digitalWrite(LED_BUILTIN, (state ? HIGH: LOW));
     state = !state;
   }
