@@ -8,7 +8,9 @@
 enum {
     O_END,
     O_INIT,
+    O_ERASE_ALL,
     O_SET,
+    O_FILL_PERC,
     O_LOOP,
     O_MAIN_LOOP,
     O_NEXT,
@@ -222,6 +224,18 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
             {O_PAL_ROTATE_RIGHT, 2},
         {O_NEXT},
     },
+    { // 11
+        {O_INIT, 0, RF_DEFAULT},
+        {O_SPEED_MS, 0, 6},
+        {O_MAIN_LOOP},
+            {O_LOOP, 200},
+                {O_ERASE_ALL},
+                {O_FILL_PERC, 1, 0, 10, 1, 10},
+                {O_PIX_ROTATE_RIGHT, 1},
+            {O_NEXT},
+            {O_PAL_ROTATE_RIGHT, 1},
+        {O_NEXT},
+    },
 };
 
 #define kEffectCount (sizeof(effects_data)/sizeof(effects_data[0]))
@@ -239,8 +253,8 @@ static void effects_start(int effect) {
 }
 
 void effects_reset(void) {
-//    effects_start(kEffectCount - 1);
-    effects_start(10);
+    effects_start(kEffectCount - 1);
+//    effects_start(10);
 }
 
 static uint8_t apply_palette_transformations(uint8_t orig_color) {
@@ -292,10 +306,23 @@ bool effects_exec_step(uint8_t *pixels) {
             pixel_count = (step[1] == 0 ? kLEDCount : step[1]);
             rendering_flags = step[2];
             break;
+        case O_ERASE_ALL:
+            for (int i = 0; i < kLEDCount; i++) {
+                pixels[i] = 0;
+            }
+            break;
         case O_SET: {
             int count = MIN(pixel_count, kMaxArgCount);
             for (int i = 0; i < count; i++) {
                 set_pixel(pixels, i, step[1+i]);
+            }
+            return false;
+        }
+        case O_FILL_PERC: {
+            int s = pixel_count * step[2] / step[3];
+            int e = pixel_count * step[4] / step[5];
+            for (int i = s; i < e; i++) {
+                set_pixel(pixels, i, step[1]);
             }
             return false;
         }

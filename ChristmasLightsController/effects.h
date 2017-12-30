@@ -8,9 +8,7 @@
 
 /*
  TODOs:
- - pixels rotation
- - palette shuffling
- 
+ - palette shuffling 
  - palette window
  - transition style
  - global palette rotation
