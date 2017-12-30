@@ -63,6 +63,9 @@ RgbColor colors[] = {
 
 Timer<150> rotate_timer;
 Timer<500> watchdog_timer;
+#if ENABLE_EFFECTS
+Timer<15> frame_timer;
+#endif
 
 #if ENABLE_BLUE_TRACE
 int blue_trace_pos = 150;
@@ -76,7 +79,9 @@ ESP8266WebServer webServer(80);
 
 #if ENABLE_EFFECTS
 uint8_t pixels[kLEDCount];
+uint8_t next_pixels[kLEDCount];
 PARAMS params;
+unsigned long cur_tick_time = 0;
 unsigned long next_tick_time = 0;
 #endif
 
@@ -224,6 +229,11 @@ void setup()
       movers[i].start();
     }
 #endif
+
+    bzero(next_pixels, kLEDCount * sizeof(pixels[0]));
+#if ENABLE_EFFECTS
+    frame_timer.start();
+#endif
 }
 
 bool state = false;
@@ -277,12 +287,22 @@ void loop()
   strip.SetPixelColor(num_leds+1, blue);
 #elif ENABLE_EFFECTS
   if (next_tick_time == 0 || now >= next_tick_time) {
-    effects_tick(pixels, &params);
-    for (int i = 0; i < kLEDCount; i++) {
-      strip.SetPixelColor(i, colors[pixels[i]]);
-    }
+    memcpy(pixels, next_pixels, kLEDCount * sizeof(pixels[0]));
+    effects_tick(next_pixels, &params);
+    cur_tick_time = now;
     next_tick_time = now + params.next_tick_delay_ms;
   }
+
+  if (frame_timer.fired(now)) {
+    float progress = (now - cur_tick_time) / (float)(next_tick_time - cur_tick_time);
+    for (int i = 0; i < kLEDCount; i++) {
+      RgbColor old_color = colors[pixels[i]];
+      RgbColor new_color = colors[next_pixels[i]];
+      strip.SetPixelColor(i, RgbColor::LinearBlend(old_color, new_color, progress));
+//      strip.SetPixelColor(i, new_color);
+    }
+  }
+
 #else
   for (int i = 0; i < kLEDCount; i++) {
     strip.SetPixelColor(i, black);
