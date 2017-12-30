@@ -23,7 +23,7 @@ enum {
     O_PIX_ROTATE_LEFT,
 };
 
-#define kBaseSpeed 250
+#define kBaseSpeed 500
 #define kTargetEffectDurationMs 30000
 
 enum {
@@ -172,7 +172,7 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
     },
     { // 8
         {O_INIT, 5, RF_REPEATING},
-        {O_SPEED_MS, 3, 00},
+        {O_SPEED_MS, 4, 00},
         {O_MAIN_LOOP},
             {O_SET, 1, 0, 0, 0, 0},
             {O_SET, 0, 1, 0, 0, 0},
@@ -249,7 +249,7 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
     },
     { // 11
         {O_INIT, 0, RF_DEFAULT},
-        {O_SPEED_MS, 0, 6},
+        {O_SPEED_MS, 0, 100},
         {O_MAIN_LOOP},
             {O_LOOP, 5},
                 {O_LOOP, 120},
