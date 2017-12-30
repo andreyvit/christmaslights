@@ -1,4 +1,4 @@
-#define ENABLE_WIFI 0
+#define ENABLE_WIFI 1
 #define ENABLE_SONAR 0
 #define ENABLE_BLUE_TRACE 0
 #define ENABLE_EFFECTS 1
@@ -12,10 +12,10 @@
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
+#include <ESP8266WebServer.h>
 
 //#include <ESP8266WiFi.h>          //ESP8266 Core WiFi Library (you most likely already have this in your sketch)
 //#include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
-//#include <ESP8266WebServer.h>     //Local WebServer used to serve the configuration portal
 //#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #endif
 
@@ -68,6 +68,13 @@ Timer<200> blue_trace_timer;
 
 #if ENABLE_WIFI 
 //WiFiManager wifiManager;
+ESP8266WebServer webServer(80);
+#endif
+
+#if ENABLE_EFFECTS
+uint8_t pixels[kLEDCount];
+PARAMS params;
+unsigned long next_tick_time = 0;
 #endif
 
 #if !ENABLE_EFFECTS
@@ -130,6 +137,20 @@ Mover movers[] = {
 };
 #endif
 
+#if ENABLE_WIFI 
+void handleRoot(void) {
+  char temp[400];
+  snprintf(temp, sizeof(temp), "Effect <b>%02d</b>, step %02d", params.effect, params.step);
+  temp[sizeof(temp)-1] = 0;
+  
+  webServer.send (200, "text/html", temp);
+}
+
+void handleNotFound(void) {
+  webServer.send (404, "text/plain", "Not found");
+}
+#endif
+
 void setup()
 {
   Serial.begin(115200);
@@ -143,11 +164,14 @@ void setup()
 //  }
   WiFi.mode(WIFI_STA);
   WiFi.begin(kWifiNetwork, kWifiPassword);
-  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
-    Serial.println("Connection Failed! Rebooting...");
-    delay(5000);
-    ESP.restart();
-  }
+//  while (WiFi.waitForConnectResult() != WL_CONNECTED) {
+//    Serial.println("Connection Failed! Rebooting...");
+//    delay(5000);
+//    ESP.restart();
+//  }
+
+  webServer.on("/", handleRoot);
+  webServer.onNotFound(handleNotFound);
 #else
   WiFi.forceSleepBegin();
 #endif
@@ -185,16 +209,30 @@ void setup()
 #endif
 }
 
-#if ENABLE_EFFECTS
-uint8_t pixels[kLEDCount];
-PARAMS params;
-unsigned long next_tick_time = 0;
-#endif
-
 bool state = false;
+bool was_connected = false;
 void loop()
 {
   unsigned long now = millis();
+
+#if ENABLE_WIFI 
+  if (WiFi.status() == WL_CONNECTED) {
+    if (!was_connected) {
+      was_connected = true;
+      Serial.println("Wi-Fi connected.");
+      Serial.println(WiFi.localIP());
+      webServer.begin();
+      Serial.println ("HTTP server started");
+    }
+  } else {
+    if (was_connected) {
+      was_connected = false;
+      Serial.println("Wi-Fi disconnected.");
+    }
+  }
+
+  webServer.handleClient();
+#endif
 
 #if ENABLE_SONAR
   if (sonar.update()) {
