@@ -10,7 +10,7 @@
  TODOs:
  - normalize effects duration
  - pixels rotation
- - palette rotation
+ - palette shuffling
  - nested loops
  
  - palette window

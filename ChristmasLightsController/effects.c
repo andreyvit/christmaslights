@@ -14,12 +14,15 @@ enum {
     O_SKIP,
     O_SPEED_MS,
     O_SPEED_X,
+    O_PAL_ROTATE_RIGHT,
+    O_PAL_ROTATE_LEFT,
 };
 
 static int effect_idx;
 static int step_idx;
 static int loop_count;
 static int skip_count;
+static uint8_t palette_rotation;
 static uint8_t repeating_pixel_count;
 static PARAMS params;
 
@@ -191,6 +194,23 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
         {O_SET, 0, 1, 2, 3, 4},
         {O_NEXT},
     },
+    { // 10
+        {O_REPEAT_PX, 2},
+        {O_LOOP, 10},
+        {O_SET, 1, 2},
+        {O_SET, 2, 1},
+        {O_NEXT},
+        {O_PAL_ROTATE_RIGHT, 2},
+        {O_LOOP, 10},
+        {O_SET, 1, 2},
+        {O_SET, 2, 1},
+        {O_NEXT},
+        {O_PAL_ROTATE_RIGHT, 2},
+        {O_LOOP, 10},
+        {O_SET, 1, 2},
+        {O_SET, 2, 1},
+        {O_NEXT},
+    },
 };
 
 #define kEffectCount (sizeof(effects_data)/sizeof(effects_data[0]))
@@ -201,12 +221,28 @@ static void effects_start(int effect) {
     loop_count = 0;
     skip_count = 0;
     repeating_pixel_count = 0;
+    palette_rotation = 0;
     params.next_tick_delay_ms = kBaseSpeed;
 }
 
 void effects_reset(void) {
-    //effects_start(kEffectCount - 1);
-    effects_start(0);
+    effects_start(kEffectCount - 1);
+//    effects_start(0);
+}
+
+static uint8_t apply_palette_transformations(uint8_t orig_color) {
+    if (orig_color == 0) {
+        return 0;
+    }
+    
+    // palette_rotation == 1
+    // 2 -> 3
+    // 4 -> 1
+    //
+    // palette_rotation == 3
+    // 1 -> 4
+    // 3 -> 2
+    return 1 + (orig_color - 1 + palette_rotation) % kPalletteSize;
 }
 
 bool effects_exec_step(uint8_t *pixels) {
@@ -227,12 +263,12 @@ bool effects_exec_step(uint8_t *pixels) {
             if (repeating_pixel_count > 0) {
                 for (int i = 0; i < kLEDCount; i++) {
                     int ei = i % repeating_pixel_count;
-                    pixels[i] = step[1+ei];
+                    pixels[i] = apply_palette_transformations(step[1+ei]);
                 }
             } else {
                 int count = MIN(kLEDCount, kMaxArgCount);
                 for (int i = 0; i < count; i++) {
-                    pixels[i] = step[1+i];
+                    pixels[i] = apply_palette_transformations(step[1+i]);
                 }
             }
             return false;
@@ -262,6 +298,14 @@ bool effects_exec_step(uint8_t *pixels) {
             break;
         case O_SPEED_X:
             params.next_tick_delay_ms = (uint32_t)kBaseSpeed * step[1] / step[2];
+            break;
+        case O_PAL_ROTATE_RIGHT:
+            palette_rotation += step[1];
+            palette_rotation = palette_rotation % kPalletteSize;
+            break;
+        case O_PAL_ROTATE_LEFT:
+            palette_rotation += (kPalletteSize - step[1]);
+            palette_rotation = palette_rotation % kPalletteSize;
             break;
         default:
             abort();
