@@ -12,6 +12,7 @@ static PARAMS params;
     NSDate *_lastTickDate;
     CADisplayLink *_displayLink;
     UILabel *_effectLabel;
+    UIButton *_prevButton, *_nextButton;
 }
 
 - (instancetype)initWithFrame:(CGRect)frame {
@@ -25,9 +26,30 @@ static PARAMS params;
         _effectLabel.translatesAutoresizingMaskIntoConstraints = false;
         _effectLabel.textColor = [UIColor whiteColor];
         [self addSubview:_effectLabel];
+
+        _prevButton = [UIButton buttonWithType:UIButtonTypeSystem];
+        _prevButton.translatesAutoresizingMaskIntoConstraints = false;
+        [_prevButton setTitle:@"←" forState:UIControlStateNormal];
+        [_prevButton addTarget:self action:@selector(prev:) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:_prevButton];
+
+        _nextButton = [UIButton buttonWithType:UIButtonTypeSystem];
+        _nextButton.translatesAutoresizingMaskIntoConstraints = false;
+        [_nextButton setTitle:@"→" forState:UIControlStateNormal];
+        [_nextButton addTarget:self action:@selector(next:) forControlEvents:UIControlEventTouchUpInside];
+        [self addSubview:_nextButton];
+
         [NSLayoutConstraint activateConstraints:@[
             [_effectLabel.centerXAnchor constraintEqualToAnchor:self.centerXAnchor],
             [_effectLabel.topAnchor constraintEqualToAnchor:self.topAnchor constant:30],
+            [_prevButton.centerYAnchor constraintEqualToAnchor:_effectLabel.centerYAnchor],
+            [_prevButton.rightAnchor constraintEqualToAnchor:_effectLabel.leftAnchor constant:-20],
+            [_prevButton.widthAnchor constraintEqualToConstant:44],
+            [_prevButton.heightAnchor constraintEqualToConstant:44],
+            [_nextButton.centerYAnchor constraintEqualToAnchor:_effectLabel.centerYAnchor],
+            [_nextButton.leftAnchor constraintEqualToAnchor:_effectLabel.rightAnchor constant:20],
+            [_nextButton.widthAnchor constraintEqualToConstant:44],
+            [_nextButton.heightAnchor constraintEqualToConstant:44],
         ]];
         
         NSMutableArray<UIView *> *lights = [NSMutableArray new];
@@ -42,6 +64,13 @@ static PARAMS params;
         _pixels = malloc(sizeof(uint8_t) * kLEDCount);
     }
     return self;
+}
+
+- (IBAction)prev:(id)sender {
+    effects_advance(-1);
+}
+- (IBAction)next:(id)sender {
+    effects_advance(1);
 }
 
 - (void)didMoveToWindow {

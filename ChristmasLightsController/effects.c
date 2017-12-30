@@ -53,6 +53,8 @@ static uint64_t effect_duration_ms;
 static RENDERING_FLAGS rendering_flags;
 static PARAMS params;
 
+enum { kInitialEffect = 0 };
+
 static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
     { // 0
         {O_INIT, 4, RF_REPEATING},
@@ -240,7 +242,7 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
 
 #define kEffectCount (sizeof(effects_data)/sizeof(effects_data[0]))
 
-static void effects_start(int effect) {
+void effects_restart(int effect) {
     effect_idx = effect;
     step_idx = 0;
     loop_depth = 0;
@@ -252,9 +254,18 @@ static void effects_start(int effect) {
     params.next_tick_delay_ms = kBaseSpeed;
 }
 
+void effects_advance(int delta) {
+    int e = (int)effect_idx + delta;
+    while (e < kEffectCount) {
+        e += kEffectCount;
+    }
+    e = e % kEffectCount;
+    effects_restart(e);
+}
+
 void effects_reset(void) {
-    effects_start(kEffectCount - 1);
-//    effects_start(10);
+//    effects_restart(kEffectCount - 1);
+    effects_restart(kInitialEffect);
 }
 
 static uint8_t apply_palette_transformations(uint8_t orig_color) {
@@ -300,7 +311,7 @@ bool effects_exec_step(uint8_t *pixels) {
     
     switch (op) {
         case O_END:
-            effects_start((effect_idx + 1) % kEffectCount);
+            effects_restart((effect_idx + 1) % kEffectCount);
             return false;
         case O_INIT:
             pixel_count = (step[1] == 0 ? kLEDCount : step[1]);

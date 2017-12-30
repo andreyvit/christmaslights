@@ -24,6 +24,7 @@ typedef struct {
 } PARAMS;
 
 void effects_reset(void);
+void effects_advance(int delta);
 void effects_tick(uint8_t *pixels, PARAMS *params);
 
 #endif /* effects_h */
