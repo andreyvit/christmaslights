@@ -6,8 +6,9 @@
 #include "config.h"
 #include "effects.h"
 
-#if ENABLE_WIFI 
 #include <ESP8266WiFi.h>
+
+#if ENABLE_WIFI 
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
@@ -138,6 +139,8 @@ void setup()
     delay(5000);
     ESP.restart();
   }
+#else
+  WiFi.forceSleepBegin();
 #endif
   
   pinMode(LED_BUILTIN, OUTPUT);
