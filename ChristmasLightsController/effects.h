@@ -8,7 +8,6 @@
 
 /*
  TODOs:
- - normalize effects duration
  - pixels rotation
  - palette shuffling
  
