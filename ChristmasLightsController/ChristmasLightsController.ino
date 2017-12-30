@@ -31,11 +31,11 @@ enum {
   PIN_SONAR_ECHO = 13, //D7,
 };
 
-#define PixelCount 288
+#define kLEDCount 288
 
 #define colorSaturation 255
 
-NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> strip(PixelCount); // GPI02 aka D4
+NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> strip(kLEDCount); // GPI02 aka D4
 #if ENABLE_SONAR
 ESP8266Ultrasonic sonar(PIN_SONAR_TRIG, PIN_SONAR_ECHO);
 #endif
@@ -88,7 +88,7 @@ struct Mover {
   void step() {
     if (bounce) {
       if (dir > 0) {
-        if (pos == PixelCount - 1) {
+        if (pos == kLEDCount - 1) {
           dir = -dir;
         }
       } else {
@@ -101,10 +101,10 @@ struct Mover {
     pos += dir;
     if (!bounce) {
       if (dir > 0) {
-        pos = pos % PixelCount;
+        pos = pos % kLEDCount;
       } else {
         while (pos < 0) {
-          pos += PixelCount;
+          pos += kLEDCount;
         }
       }
     }
@@ -113,10 +113,10 @@ struct Mover {
 
 Mover movers[] = {
   {red,               0, +1, 20, true},
-  {green,  PixelCount-1, -1, 10, true},
+  {green,   kLEDCount-1, -1, 10, true},
   {blue,            100, +1, 30, false},
   {red,              10, +1,  2, true},
-  {green, PixelCount-11, +1,  8, true},
+  {green,  kLEDCount-11, +1,  8, true},
   {blue,            150, -1,  1, false},
 };
 #endif
@@ -177,7 +177,7 @@ void setup()
 }
 
 #if ENABLE_EFFECTS
-uint8_t pixels[PixelCount];
+uint8_t pixels[kLEDCount];
 PARAMS params;
 unsigned long next_tick_time = 0;
 #endif
@@ -192,7 +192,7 @@ void loop()
     //Serial.println("Got sonar update.");
   }
 
-  const int num_leds = PixelCount-2;
+  const int num_leds = kLEDCount-2;
   const int cm_cutoff = 30;
 
   int leds = num_leds - (sonar.distance_mm() / 10 /* mm to cm */ * num_leds / cm_cutoff);
@@ -213,13 +213,13 @@ void loop()
 #elif ENABLE_EFFECTS
   if (next_tick_time == 0 || now >= next_tick_time) {
     effects_tick(pixels, &params);
-    for (int i = 0; i < PixelCount; i++) {
+    for (int i = 0; i < kLEDCount; i++) {
       strip.SetPixelColor(i, colors[pixels[i]]);
     }
     next_tick_time = now + params.next_tick_delay_ms;
   }
 #else
-  for (int i = 0; i < PixelCount; i++) {
+  for (int i = 0; i < kLEDCount; i++) {
     strip.SetPixelColor(i, black);
   }
   for (int i = 0; i < sizeof(movers)/sizeof(movers[0]); i++) {
@@ -227,12 +227,12 @@ void loop()
     movers[i].move(now);
   }
   //strip.SetPixelColor(0, red);
-  //strip.SetPixelColor(PixelCount-1, green);
+  //strip.SetPixelColor(kLEDCount-1, green);
 #endif
 
 #if ENABLE_BLUE_TRACE
   if (blue_trace_timer.fired(now)) {
-    blue_trace_pos = (blue_trace_pos + 1) % PixelCount;
+    blue_trace_pos = (blue_trace_pos + 1) % kLEDCount;
     Serial.printf("blue at %d\n", blue_trace_pos);
   }
   strip.SetPixelColor(blue_trace_pos, blue);
