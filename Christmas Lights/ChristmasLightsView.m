@@ -2,8 +2,6 @@
 #include "effects.h"
 #include <math.h>
 
-static const NSTimeInterval kAnimationStepTime = 0.25;
-
 static const CGFloat kLEDSize = 8.0;
 static PARAMS params;
 
