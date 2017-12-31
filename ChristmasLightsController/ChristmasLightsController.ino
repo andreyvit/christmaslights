@@ -13,6 +13,7 @@
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
+#include <ESP8266HTTPUpdateServer.h>
 
 //#include <ESP8266WiFi.h>          //ESP8266 Core WiFi Library (you most likely already have this in your sketch)
 //#include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
@@ -27,6 +28,7 @@
 
 unsigned loop_timings[32];
 unsigned loop_timing_index;
+char deviceID[64];
 
 enum {
   PIN_LED_STRIP = 2,
@@ -77,6 +79,7 @@ Timer<200> blue_trace_timer;
 #if ENABLE_WIFI 
 //WiFiManager wifiManager;
 ESP8266WebServer webServer(80);
+ESP8266HTTPUpdateServer updateServer;
 #endif
 
 #if ENABLE_EFFECTS
@@ -161,10 +164,12 @@ void handleRoot(void) {
 "<!DOCTYPE html><html><head><meta http-equiv='refresh' content='2' />"
 "<style>* {margin: 0; padding: 0} body {font: 16px Helvetica, Arial, sans-serif; margin: 2em 4em; } p {margin-top: 0.5em;}</style>"
 "<body>"
+"<p>Device ID: %s"
 "<p>LED count: %d"
 "<p>Effect: %02d (step %02d)"
 "<p>Loop time (ms): %d"
-"</html>", kActualLEDCount, params.effect, params.step, timings_avg);
+"<p><a href='/update'>Update Firmware</a>"
+"</html>", deviceID, kActualLEDCount, params.effect, params.step, timings_avg);
   temp[sizeof(temp)-1] = 0;
   
   webServer.send (200, "text/html", temp);
@@ -177,13 +182,14 @@ void handleNotFound(void) {
 
 void setup()
 {
+  sprintf(deviceID, "LED_%08X", ESP.getChipId());
+
   Serial.begin(115200);
   //while (!Serial); // wait for serial attach
-  Serial.println("Booting");
+  Serial.printf("Booting %s\n", deviceID);
 
 #if ENABLE_WIFI 
 //  {
-//    String ssid = "LEDs " + String(ESP.getChipId());
 //    wifiManager.autoConnect(ssid.c_str(), NULL);
 //  }
   WiFi.mode(WIFI_STA);
@@ -196,6 +202,32 @@ void setup()
 
   webServer.on("/", handleRoot);
   webServer.onNotFound(handleNotFound);
+  updateServer.setup(&webServer); // "/update"
+
+  ArduinoOTA.setHostname(deviceID);
+  ArduinoOTA.onStart([]() {
+    // ArduinoOTA.getCommand() == U_FLASH
+    // NOTE: if updating SPIFFS this would be the place to unmount SPIFFS using SPIFFS.end()
+    Serial.println("OTA starting");
+  });
+  ArduinoOTA.onEnd([]() {
+    Serial.println("\nOTA end");
+  });
+  ArduinoOTA.onProgress([](unsigned int progress, unsigned int total) {
+    Serial.printf("OTA progress: %u%%\r", (progress / (total / 100)));
+  });
+  ArduinoOTA.onError([](ota_error_t error) {
+    Serial.printf("OTA error: %u ", error);
+    if (error == OTA_AUTH_ERROR) Serial.println("Auth Failed");
+    else if (error == OTA_BEGIN_ERROR) Serial.println("Begin Failed");
+    else if (error == OTA_CONNECT_ERROR) Serial.println("Connect Failed");
+    else if (error == OTA_RECEIVE_ERROR) Serial.println("Receive Failed");
+    else if (error == OTA_END_ERROR) Serial.println("End Failed");
+    else Serial.println("Unknown");
+  });
+
+  MDNS.begin(deviceID);
+  MDNS.addService("http", "tcp", 80);
 #else
   WiFi.forceSleepBegin();
 #endif
@@ -253,6 +285,7 @@ void loop()
       Serial.println(WiFi.localIP());
       webServer.begin();
       Serial.println ("HTTP server started");
+      ArduinoOTA.begin();
     }
   } else {
     if (was_connected) {
@@ -262,6 +295,9 @@ void loop()
   }
 
   webServer.handleClient();
+
+  ArduinoOTA.handle();
+  MDNS.update();
 #endif
 
 #if ENABLE_SONAR
