@@ -41,6 +41,8 @@ enum {
 
 #define kMainLoopCount -42
 
+static int led_count;
+
 static int effect_idx;
 static int step_idx;
 static int loop_counts[kMaxLoopDepth];
@@ -295,7 +297,7 @@ void effects_restart(int effect) {
     step_idx = 0;
     loop_depth = 0;
     skip_count = 0;
-    pixel_count = kLEDCount;
+    pixel_count = led_count;
     palette_rotation = 0;
     pixel_rotation = 0;
     effect_duration_ms = 0;
@@ -311,7 +313,8 @@ void effects_advance(int delta) {
     effects_restart(e);
 }
 
-void effects_reset(void) {
+void effects_reset(int a_led_count) {
+    led_count = a_led_count;
 //    effects_restart(kEffectCount - 1);
     effects_restart(kInitialEffect);
 }
@@ -343,7 +346,7 @@ static void set_pixel(uint8_t *pixels, int i, uint8_t color) {
     pixels[i] = color;
     if (rendering_flags & RF_REPEATING) {
         i += pixel_count;
-        while (i < kLEDCount) {
+        while (i < led_count) {
             pixels[i] = color;
             i += pixel_count;
         }
@@ -362,11 +365,11 @@ bool effects_exec_step(uint8_t *pixels) {
             effects_restart((effect_idx + 1) % kEffectCount);
             return false;
         case O_INIT:
-            pixel_count = (step[1] == 0 ? kLEDCount : step[1]);
+            pixel_count = (step[1] == 0 ? led_count : step[1]);
             rendering_flags = step[2];
             break;
         case O_ERASE_ALL:
-            for (int i = 0; i < kLEDCount; i++) {
+            for (int i = 0; i < led_count; i++) {
                 pixels[i] = 0;
             }
             break;

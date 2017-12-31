@@ -34,7 +34,9 @@ enum {
   PIN_SONAR_ECHO = 13, //D7,
 };
 
-#define kLEDCount 288
+// somehow, decreasing kLEDCount to 200 causes bottom LEDs to stop doing alpha blending (WTF)
+#define kLEDCount 300
+#define kActualLEDCount 200
 
 #define colorSaturation 255
 
@@ -162,7 +164,7 @@ void handleRoot(void) {
 "<p>LED count: %d"
 "<p>Effect: %02d (step %02d)"
 "<p>Loop time (ms): %d"
-"</html>", kLEDCount, params.effect, params.step, timings_avg);
+"</html>", kActualLEDCount, params.effect, params.step, timings_avg);
   temp[sizeof(temp)-1] = 0;
   
   webServer.send (200, "text/html", temp);
@@ -223,7 +225,7 @@ void setup()
 #endif
 
 #if ENABLE_EFFECTS
-    effects_reset();
+    effects_reset(kActualLEDCount);
 #else
     for (int i = 0; i < sizeof(movers)/sizeof(movers[0]); i++) {
       movers[i].start();
@@ -317,7 +319,7 @@ void loop()
 
 #if ENABLE_BLUE_TRACE
   if (blue_trace_timer.fired(now)) {
-    blue_trace_pos = (blue_trace_pos + 1) % kLEDCount;
+    blue_trace_pos = (blue_trace_pos + 1) % kActualLEDCount;
     Serial.printf("blue at %d\n", blue_trace_pos);
   }
   strip.SetPixelColor(blue_trace_pos, blue);

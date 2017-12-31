@@ -23,7 +23,7 @@ typedef struct {
     uint8_t effect, step;
 } PARAMS;
 
-void effects_reset(void);
+void effects_reset(int led_count);
 void effects_advance(int delta);
 void effects_tick(uint8_t *pixels, PARAMS *params);
 
