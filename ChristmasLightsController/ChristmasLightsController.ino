@@ -260,7 +260,13 @@ void setup()
 #endif
 
 #if ENABLE_EFFECTS
-    bzero(next_pixels, kLEDCount * sizeof(pixels[0]));
+#if DEVICE_ESP8266
+    bzero(next_pixels, kLEDCount * sizeof(next_pixels[0]));
+#else
+    for (int i = 0; i < kLEDCount; i++) {
+      next_pixels[i] = 0;
+    }
+#endif
     frame_timer.start();
 #endif
     Serial.println(F("RUNNING")); Serial.flush();
@@ -322,7 +328,11 @@ void loop()
 #elif ENABLE_EFFECTS
   if (next_tick_time == 0 || now >= next_tick_time) {
     memcpy(pixels, next_pixels, kLEDCount * sizeof(pixels[0]));
+    // Serial.println("TICKING"); Serial.flush();
     effects_tick(next_pixels, &params);
+    // Serial.print("TICK E"); Serial.print(params.effect);
+    // Serial.print(" S"); Serial.println(params.step);
+
     cur_tick_time = now;
     next_tick_time = now + params.next_tick_delay_ms;
   }
@@ -382,4 +392,13 @@ void loop()
   unsigned loop_timing = millis() - now;
   loop_timings[loop_timing_index] = loop_timing;
   loop_timing_index = (loop_timing_index+1) % (sizeof(loop_timings) / sizeof(loop_timings[0]));
+}
+
+extern "C" {
+  void effects_log_string(const char *message) {
+    Serial.print(message); Serial.flush();
+  }
+  void effects_log_int(int value) {
+    Serial.print(value); Serial.flush();
+  }
 }

@@ -4,6 +4,9 @@
 #define kLEDCount 288
 #define kActualLEDCount kLEDCount
 #define kPalletteSize 4
+#define kInitialEffect 0
+#define kBaseSpeed 500
+#define kTargetEffectDurationMs 30000
 
 #define DEVICE_ESP8266 0
 #define ENABLE_WIFI 0

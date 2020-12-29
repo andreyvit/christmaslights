@@ -1,35 +1,57 @@
+#include "config.h"
 #if ENABLE_EFFECTS
 #include "effects.h"
-#include "config.h"
 #include <stdlib.h>
 #include <stdbool.h>
 
 #define MIN(x, y) ((x) < (y) ? (x) : (y))
 #define MAX(x, y) ((x) > (y) ? (x) : (y))
 
+#ifdef ARDUINO
+#include <Arduino.h>
+#define R(x) pgm_read_byte(&(x))
+// #define LOGSTR(str) Serial.print(F(str))
+// #define LOGSTRLN(str) Serial.println(F(str))
+// #define LOGINT(val) Serial.print(val)
+// #define LOGINTLN(val) Serial.println(val)
+
+extern void effects_log_string(const char *message);
+extern void effects_log_int(int value);
+
+#define LOGSTR(str) effects_log_string(str)
+#define LOGSTRLN(str) effects_log_string(str "\n")
+#define LOGINT(val) effects_log_int(val)
+#define LOGINTLN(val) do{}while(effects_log_int(val); effects_log_string("\n");)
+#else
+#define PROGMEM
+#define R(x) (x)
+#define LOGSTR(str) printf("%s", str)
+#define LOGSTRLN(str) printf("%s\n", str)
+#define LOGINT(str) printf("%d", str)
+#define LOGINTLN(str) printf("%d\n", str)
+#endif
+
 enum {
-    O_END,
-    O_INIT,
-    O_ERASE_ALL,
-    O_SET,
-    O_FILL_PERC,
-    O_LOOP,
-    O_MAIN_LOOP,
-    O_NEXT,
-    O_SKIP,
-    O_SPEED_MS,
-    O_SPEED_X,
-    O_PAL_ROTATE_RIGHT,
-    O_PAL_ROTATE_LEFT,
-    O_PIX_ROTATE_RIGHT,
-    O_PIX_ROTATE_LEFT,
+    O_HALT = 0,
+    O_BEGIN_EFFECT = '{',
+    O_END_EFFECT = '}',
+    O_ERASE_ALL = 'E',
+    O_SET = '=',
+    O_FILL_PERC = 'F',
+    O_LOOP = 'L',
+    O_MAIN_LOOP = 'M',
+    O_NEXT = 'N',
+    O_WAIT = 'W',
+    O_SPEED_MS = 'S',
+    O_SPEED_X = 'X',
+    O_PAL_ROTATE_RIGHT = ']',
+    O_PAL_ROTATE_LEFT = '[',
+    O_PIX_ROTATE_RIGHT = '>',
+    O_PIX_ROTATE_LEFT = '<',
 };
 
-#define kBaseSpeed 500
-#define kTargetEffectDurationMs 30000
-
 enum {
-    kMaxStepCount = 50,
+    kEffectMax = 255,
     kMaxArgCount = 10,
     kMaxLoopDepth = 4,
 };
@@ -43,8 +65,14 @@ enum {
 
 #define kMainLoopCount -42
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+
 static int led_count;
 
+static uint16_t effect_first, effect_last;
 static int effect_idx;
 static int step_idx;
 static int loop_counts[kMaxLoopDepth];
@@ -57,226 +85,223 @@ static uint64_t effect_duration_ms;
 static RENDERING_FLAGS rendering_flags;
 static PARAMS params;
 
-enum { kInitialEffect = 0 };
+static const uint8_t effects_data[][1+kMaxArgCount] PROGMEM = {
+    {O_BEGIN_EFFECT, 1, 4, RF_REPEATING},
+    {O_MAIN_LOOP},
+        {O_LOOP, 10},
+            {O_SET, 1, 2, 3, 4},
+            {O_PIX_ROTATE_RIGHT, 1},
+        {O_NEXT},
+        {O_LOOP, 10},
+            {O_SET, 1, 2, 3, 4},
+            {O_PIX_ROTATE_LEFT, 1},
+        {O_NEXT},
+    {O_NEXT},
+    {O_END_EFFECT},
 
-static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
-    { // 0
-        {O_INIT, 4, RF_REPEATING},
-        {O_MAIN_LOOP},
-            {O_LOOP, 10},
-                {O_SET, 1, 2, 3, 4},
+    {O_BEGIN_EFFECT, 2, 4, RF_REPEATING},
+    {O_MAIN_LOOP},
+        {O_SET, 1, 0, 0, 0},
+        {O_SET, 1, 2, 0, 0},
+        {O_SET, 1, 2, 3, 0},
+        {O_SET, 1, 2, 3, 4},
+        {O_SET, 0, 2, 3, 4},
+        {O_SET, 0, 0, 3, 4},
+        {O_SET, 0, 0, 0, 4},
+        {O_SET, 0, 0, 0, 0},
+        {O_PAL_ROTATE_RIGHT, 1},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 3, 4, RF_REPEATING},
+    {O_SPEED_MS, 10, 00},
+    {O_MAIN_LOOP},
+        {O_LOOP, 10},
+            {O_SET, 1, 0, 1, 0},
+            {O_SET, 0, 3, 0, 3},
+        {O_NEXT},
+        {O_PAL_ROTATE_RIGHT, 1},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 4, 4, RF_REPEATING},
+    {O_MAIN_LOOP},
+        {O_LOOP, 10},
+            {O_SET, 1, 2, 3, 0},
+            {O_SET, 1, 2, 0, 3},
+            {O_SET, 1, 0, 2, 3},
+            {O_SET, 0, 1, 2, 3},
+        {O_NEXT},
+        {O_PAL_ROTATE_RIGHT, 1},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 5, 8, RF_REPEATING},
+    {O_SPEED_MS, 1, 50},
+    {O_MAIN_LOOP},
+        {O_SET, 4, 0, 0, 0, 0, 0, 0, 1},
+        {O_SET, 4, 4, 0, 0, 0, 0, 1, 1},
+        {O_SET, 4, 4, 4, 0, 0, 1, 1, 1},
+        {O_SET, 4, 4, 4, 4, 1, 1, 1, 1},
+        {O_SET, 0, 4, 4, 4, 1, 1, 1, 0},
+        {O_SET, 0, 0, 4, 4, 1, 1, 0, 0},
+        {O_SET, 0, 0, 0, 4, 1, 0, 0, 0},
+        {O_SET, 0, 0, 4, 0, 0, 1, 0, 0},
+        {O_SET, 0, 4, 0, 0, 0, 0, 1, 0},
+        {O_PAL_ROTATE_RIGHT, 1},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 6, 5, RF_REPEATING},
+    {O_SPEED_MS, 5, 50},
+    {O_MAIN_LOOP},
+        {O_LOOP, 3},
+            {O_SET, 1, 1, 0, 0, 0},
+            {O_SET, 0, 1, 1, 0, 0},
+            {O_SET, 0, 0, 1, 1, 0},
+            {O_SET, 0, 0, 0, 1, 1},
+            {O_SET, 0, 0, 1, 1, 0},
+            {O_SET, 0, 1, 1, 0, 0},
+        {O_NEXT},
+        {O_PAL_ROTATE_RIGHT, 1},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 7, 4, RF_REPEATING},
+    {O_SPEED_MS, 7, 50},
+    {O_MAIN_LOOP},
+        {O_SET, 1, 0, 3, 0},
+        {O_SET, 0, 1, 0, 3},
+        {O_SET, 1, 0, 3, 0},
+        {O_SET, 0, 2, 0, 3},
+        {O_SET, 2, 0, 3, 0},
+        {O_SET, 0, 2, 0, 3},
+        {O_SET, 2, 0, 4, 0},
+        {O_SET, 0, 2, 0, 4},
+        {O_SET, 2, 0, 4, 0},
+        {O_SET, 0, 1, 0, 4},
+        {O_SET, 1, 0, 4, 0},
+        {O_SET, 0, 1, 0, 4},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 8, 5, RF_REPEATING},
+    {O_SPEED_MS, 15, 00},
+    {O_MAIN_LOOP},
+        {O_SET, 1, 0, 0, 0, 0},
+        {O_SET, 1, 0, 0, 2, 0},
+        {O_SET, 1, 3, 0, 2, 0},
+        {O_SET, 1, 3, 0, 2, 4},
+        {O_SET, 0, 3, 0, 2, 4},
+        {O_SET, 0, 3, 0, 0, 4},
+        {O_SET, 0, 0, 0, 0, 4},
+        {O_SET, 0, 0, 0, 0, 0},
+        {O_PAL_ROTATE_LEFT, 1},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 9, 5, RF_REPEATING},
+    {O_SPEED_MS, 4, 00},
+    {O_MAIN_LOOP},
+        {O_SET, 1, 0, 0, 0, 0},
+        {O_SET, 0, 1, 0, 0, 0},
+        {O_SET, 0, 0, 1, 0, 0},
+        {O_SET, 0, 0, 0, 1, 0},
+        {O_SET, 0, 0, 0, 0, 1},
+        {O_SET, 1, 2, 0, 0, 0},
+        {O_SET, 0, 1, 2, 0, 0},
+        {O_SET, 0, 0, 1, 2, 0},
+        {O_SET, 0, 0, 0, 1, 2},
+        {O_SET, 2, 0, 0, 0, 1},
+        {O_SET, 1, 2, 3, 0, 0},
+        {O_SET, 0, 1, 2, 3, 0},
+        {O_SET, 0, 0, 1, 2, 3},
+        {O_SET, 3, 0, 0, 1, 2},
+        {O_SET, 2, 3, 0, 0, 1},
+        {O_SET, 1, 2, 3, 4, 0},
+        {O_SET, 0, 1, 2, 3, 4},
+        {O_SET, 4, 0, 1, 2, 3},
+        {O_SET, 3, 4, 0, 1, 2},
+        {O_SET, 2, 3, 4, 0, 1},
+        {O_SET, 1, 2, 3, 4, 0},
+        {O_SET, 0, 1, 2, 3, 4},
+        {O_SET, 4, 0, 1, 2, 3},
+        {O_SET, 3, 4, 0, 1, 2},
+        {O_SET, 2, 3, 4, 0, 1},
+        {O_SET, 0, 2, 3, 4, 0},
+        {O_SET, 0, 0, 2, 3, 4},
+        {O_SET, 4, 0, 0, 2, 3},
+        {O_SET, 3, 4, 0, 0, 2},
+        {O_SET, 2, 3, 4, 0, 0},
+        {O_SET, 0, 2, 3, 4, 0},
+        {O_SET, 0, 0, 0, 3, 4},
+        {O_SET, 4, 0, 0, 0, 3},
+        {O_SET, 3, 4, 0, 0, 0},
+        {O_SET, 0, 3, 4, 0, 0},
+        {O_SET, 0, 0, 0, 4, 0},
+        {O_SET, 0, 0, 0, 0, 4},
+        {O_SET, 4, 0, 0, 0, 0},
+        {O_SET, 0, 4, 0, 0, 0},
+        {O_SET, 0, 0, 4, 0, 0},
+        {O_SET, 0, 0, 0, 0, 0},
+        {O_WAIT, 4},
+        {O_PAL_ROTATE_RIGHT, 1},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 10, 5, RF_REPEATING},
+    {O_SPEED_MS, 5, 00},
+    {O_MAIN_LOOP},
+        {O_SET, 1, 2, 3, 4, 0},
+        {O_SET, 0, 1, 2, 3, 4},
+        {O_SET, 4, 0, 1, 2, 3},
+        {O_SET, 3, 4, 0, 1, 2},
+        {O_SET, 2, 3, 4, 0, 1},
+        {O_SET, 1, 2, 3, 4, 0},
+        {O_SET, 2, 3, 4, 0, 1},
+        {O_SET, 3, 4, 0, 1, 2},
+        {O_SET, 4, 0, 1, 2, 3},
+        {O_SET, 0, 1, 2, 3, 4},
+        {O_PAL_ROTATE_LEFT, 2},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 11, 2, RF_REPEATING},
+    {O_SPEED_MS, 5, 00},
+    {O_MAIN_LOOP},
+        {O_LOOP, 5},
+            {O_SET, 1, 2},
+            {O_SET, 2, 1},
+        {O_NEXT},
+        {O_PAL_ROTATE_RIGHT, 2},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 12, 0, RF_DEFAULT},
+    {O_SPEED_MS, 0, 100},
+    {O_MAIN_LOOP},
+        {O_LOOP, 5},
+            {O_LOOP, 120},
+                {O_ERASE_ALL},
+                {O_FILL_PERC, 1, 0, 10, 1, 10},
                 {O_PIX_ROTATE_RIGHT, 1},
             {O_NEXT},
-            {O_LOOP, 10},
-                {O_SET, 1, 2, 3, 4},
+            {O_PAL_ROTATE_RIGHT, 1},
+        {O_NEXT},
+        {O_LOOP, 5},
+            {O_LOOP, 120},
+                {O_ERASE_ALL},
+                {O_FILL_PERC, 1, 0, 10, 1, 10},
                 {O_PIX_ROTATE_LEFT, 1},
             {O_NEXT},
-        {O_NEXT},
-    },
-    { // 1
-        {O_INIT, 4, RF_REPEATING},
-        {O_MAIN_LOOP},
-            {O_SET, 1, 0, 0, 0},
-            {O_SET, 1, 2, 0, 0},
-            {O_SET, 1, 2, 3, 0},
-            {O_SET, 1, 2, 3, 4},
-            {O_SET, 0, 2, 3, 4},
-            {O_SET, 0, 0, 3, 4},
-            {O_SET, 0, 0, 0, 4},
-            {O_SET, 0, 0, 0, 0},
             {O_PAL_ROTATE_RIGHT, 1},
         {O_NEXT},
-    },
-    { // 2
-        {O_INIT, 4, RF_REPEATING},
-        {O_SPEED_MS, 10, 00},
-        {O_MAIN_LOOP},
-            {O_LOOP, 10},
-                {O_SET, 1, 0, 1, 0},
-                {O_SET, 0, 3, 0, 3},
-            {O_NEXT},
-            {O_PAL_ROTATE_RIGHT, 1},
-        {O_NEXT},
-    },
-    { // 3
-        {O_INIT, 4, RF_REPEATING},
-        {O_MAIN_LOOP},
-            {O_LOOP, 10},
-                {O_SET, 1, 2, 3, 0},
-                {O_SET, 1, 2, 0, 3},
-                {O_SET, 1, 0, 2, 3},
-                {O_SET, 0, 1, 2, 3},
-            {O_NEXT},
-            {O_PAL_ROTATE_RIGHT, 1},
-        {O_NEXT},
-    },
-    { // 4
-        {O_INIT, 8, RF_REPEATING},
-        {O_SPEED_MS, 1, 50},
-        {O_MAIN_LOOP},
-            {O_SET, 4, 0, 0, 0, 0, 0, 0, 1},
-            {O_SET, 4, 4, 0, 0, 0, 0, 1, 1},
-            {O_SET, 4, 4, 4, 0, 0, 1, 1, 1},
-            {O_SET, 4, 4, 4, 4, 1, 1, 1, 1},
-            {O_SET, 0, 4, 4, 4, 1, 1, 1, 0},
-            {O_SET, 0, 0, 4, 4, 1, 1, 0, 0},
-            {O_SET, 0, 0, 0, 4, 1, 0, 0, 0},
-            {O_SET, 0, 0, 4, 0, 0, 1, 0, 0},
-            {O_SET, 0, 4, 0, 0, 0, 0, 1, 0},
-            {O_PAL_ROTATE_RIGHT, 1},
-        {O_NEXT},
-    },
-    { // 5
-        {O_INIT, 5, RF_REPEATING},
-        {O_SPEED_MS, 5, 50},
-        {O_MAIN_LOOP},
-            {O_LOOP, 3},
-                {O_SET, 1, 1, 0, 0, 0},
-                {O_SET, 0, 1, 1, 0, 0},
-                {O_SET, 0, 0, 1, 1, 0},
-                {O_SET, 0, 0, 0, 1, 1},
-                {O_SET, 0, 0, 1, 1, 0},
-                {O_SET, 0, 1, 1, 0, 0},
-            {O_NEXT},
-            {O_PAL_ROTATE_RIGHT, 1},
-        {O_NEXT},
-    },
-    { // 6
-        {O_INIT, 4, RF_REPEATING},
-        {O_SPEED_MS, 7, 50},
-        {O_MAIN_LOOP},
-            {O_SET, 1, 0, 3, 0},
-            {O_SET, 0, 1, 0, 3},
-            {O_SET, 1, 0, 3, 0},
-            {O_SET, 0, 2, 0, 3},
-            {O_SET, 2, 0, 3, 0},
-            {O_SET, 0, 2, 0, 3},
-            {O_SET, 2, 0, 4, 0},
-            {O_SET, 0, 2, 0, 4},
-            {O_SET, 2, 0, 4, 0},
-            {O_SET, 0, 1, 0, 4},
-            {O_SET, 1, 0, 4, 0},
-            {O_SET, 0, 1, 0, 4},
-        {O_NEXT},
-    },
-    { // 7
-        {O_INIT, 5, RF_REPEATING},
-        {O_SPEED_MS, 15, 00},
-        {O_MAIN_LOOP},
-            {O_SET, 1, 0, 0, 0, 0},
-            {O_SET, 1, 0, 0, 2, 0},
-            {O_SET, 1, 3, 0, 2, 0},
-            {O_SET, 1, 3, 0, 2, 4},
-            {O_SET, 0, 3, 0, 2, 4},
-            {O_SET, 0, 3, 0, 0, 4},
-            {O_SET, 0, 0, 0, 0, 4},
-            {O_SET, 0, 0, 0, 0, 0},
-            {O_PAL_ROTATE_LEFT, 1},
-        {O_NEXT},
-    },
-    { // 8
-        {O_INIT, 5, RF_REPEATING},
-        {O_SPEED_MS, 4, 00},
-        {O_MAIN_LOOP},
-            {O_SET, 1, 0, 0, 0, 0},
-            {O_SET, 0, 1, 0, 0, 0},
-            {O_SET, 0, 0, 1, 0, 0},
-            {O_SET, 0, 0, 0, 1, 0},
-            {O_SET, 0, 0, 0, 0, 1},
-            {O_SET, 1, 2, 0, 0, 0},
-            {O_SET, 0, 1, 2, 0, 0},
-            {O_SET, 0, 0, 1, 2, 0},
-            {O_SET, 0, 0, 0, 1, 2},
-            {O_SET, 2, 0, 0, 0, 1},
-            {O_SET, 1, 2, 3, 0, 0},
-            {O_SET, 0, 1, 2, 3, 0},
-            {O_SET, 0, 0, 1, 2, 3},
-            {O_SET, 3, 0, 0, 1, 2},
-            {O_SET, 2, 3, 0, 0, 1},
-            {O_SET, 1, 2, 3, 4, 0},
-            {O_SET, 0, 1, 2, 3, 4},
-            {O_SET, 4, 0, 1, 2, 3},
-            {O_SET, 3, 4, 0, 1, 2},
-            {O_SET, 2, 3, 4, 0, 1},
-            {O_SET, 1, 2, 3, 4, 0},
-            {O_SET, 0, 1, 2, 3, 4},
-            {O_SET, 4, 0, 1, 2, 3},
-            {O_SET, 3, 4, 0, 1, 2},
-            {O_SET, 2, 3, 4, 0, 1},
-            {O_SET, 0, 2, 3, 4, 0},
-            {O_SET, 0, 0, 2, 3, 4},
-            {O_SET, 4, 0, 0, 2, 3},
-            {O_SET, 3, 4, 0, 0, 2},
-            {O_SET, 2, 3, 4, 0, 0},
-            {O_SET, 0, 2, 3, 4, 0},
-            {O_SET, 0, 0, 0, 3, 4},
-            {O_SET, 4, 0, 0, 0, 3},
-            {O_SET, 3, 4, 0, 0, 0},
-            {O_SET, 0, 3, 4, 0, 0},
-            {O_SET, 0, 0, 0, 4, 0},
-            {O_SET, 0, 0, 0, 0, 4},
-            {O_SET, 4, 0, 0, 0, 0},
-            {O_SET, 0, 4, 0, 0, 0},
-            {O_SET, 0, 0, 4, 0, 0},
-            {O_SET, 0, 0, 0, 0, 0},
-            {O_SKIP, 4},
-            {O_PAL_ROTATE_RIGHT, 1},
-        {O_NEXT},
-    },
-    { // 9
-        {O_INIT, 5, RF_REPEATING},
-        {O_SPEED_MS, 5, 00},
-        {O_MAIN_LOOP},
-            {O_SET, 1, 2, 3, 4, 0},
-            {O_SET, 0, 1, 2, 3, 4},
-            {O_SET, 4, 0, 1, 2, 3},
-            {O_SET, 3, 4, 0, 1, 2},
-            {O_SET, 2, 3, 4, 0, 1},
-            {O_SET, 1, 2, 3, 4, 0},
-            {O_SET, 2, 3, 4, 0, 1},
-            {O_SET, 3, 4, 0, 1, 2},
-            {O_SET, 4, 0, 1, 2, 3},
-            {O_SET, 0, 1, 2, 3, 4},
-            {O_PAL_ROTATE_LEFT, 2},
-        {O_NEXT},
-    },
-    { // 10
-        {O_INIT, 2, RF_REPEATING},
-        {O_SPEED_MS, 5, 00},
-        {O_MAIN_LOOP},
-            {O_LOOP, 5},
-                {O_SET, 1, 2},
-                {O_SET, 2, 1},
-            {O_NEXT},
-            {O_PAL_ROTATE_RIGHT, 2},
-        {O_NEXT},
-    },
-    { // 11
-        {O_INIT, 0, RF_DEFAULT},
-        {O_SPEED_MS, 0, 100},
-        {O_MAIN_LOOP},
-            {O_LOOP, 5},
-                {O_LOOP, 120},
-                    {O_ERASE_ALL},
-                    {O_FILL_PERC, 1, 0, 10, 1, 10},
-                    {O_PIX_ROTATE_RIGHT, 1},
-                {O_NEXT},
-                {O_PAL_ROTATE_RIGHT, 1},
-            {O_NEXT},
-            {O_LOOP, 5},
-                {O_LOOP, 120},
-                    {O_ERASE_ALL},
-                    {O_FILL_PERC, 1, 0, 10, 1, 10},
-                    {O_PIX_ROTATE_LEFT, 1},
-                {O_NEXT},
-                {O_PAL_ROTATE_RIGHT, 1},
-            {O_NEXT},
-        {O_NEXT},
-    },
-    { // 12
-        {O_INIT, 5, RF_REPEATING},
-        {O_SPEED_MS, 15, 00},
-        {O_MAIN_LOOP},
+    {O_NEXT},
+    {O_END_EFFECT},
+
+    {O_BEGIN_EFFECT, 13, 5, RF_REPEATING},
+    {O_SPEED_MS, 15, 00},
+    {O_MAIN_LOOP},
         {O_SET, 1, 0, 0, 0, 0},
         {O_SET, 1, 1, 0, 0, 0},
         {O_SET, 1, 1, 1, 0, 0},
@@ -288,15 +313,52 @@ static uint8_t effects_data[][kMaxStepCount][1+kMaxArgCount] = {
         {O_SET, 0, 0, 0, 0, 1},
         {O_SET, 0, 0, 0, 0, 0},
         {O_PAL_ROTATE_LEFT, 1},
-        {O_NEXT},
-    },
+    {O_NEXT},
+    {O_END_EFFECT},
 };
 
-#define kEffectCount (sizeof(effects_data)/sizeof(effects_data[0]))
+#define kStepCount (sizeof(effects_data)/sizeof(effects_data[0]))
+
+static int effects_find_start(int effect) {
+    for (int i = 0; i < kStepCount; i++) {
+        if (R(effects_data[i][0]) == O_BEGIN_EFFECT) {
+            if (R(effects_data[i][1]) == effect) {
+                return i;
+            }
+        }
+    }
+    return 0;
+}
+
+static int effects_determine_prev(int effect) {
+    int candidate = effect_last;
+    for (int i = 0; i < kStepCount; i++) {
+        if (R(effects_data[i][0]) == O_BEGIN_EFFECT) {
+            uint8_t e = R(effects_data[i][1]);
+            if (e < effect && (candidate == effect_last || e > candidate)) {
+                candidate = e;
+            }
+        }
+    }
+    return candidate;
+}
+
+static int effects_determine_next(int effect) {
+    int candidate = effect_first;
+    for (int i = 0; i < kStepCount; i++) {
+        if (R(effects_data[i][0]) == O_BEGIN_EFFECT) {
+            uint8_t e = R(effects_data[i][1]);
+            if (e > effect && (candidate == effect_first || e < candidate)) {
+                candidate = e;
+            }
+        }
+    }
+    return candidate;
+}
 
 void effects_restart(int effect) {
     effect_idx = effect;
-    step_idx = 0;
+    step_idx = effects_find_start(effect);
     loop_depth = 0;
     skip_count = 0;
     pixel_count = led_count;
@@ -307,18 +369,37 @@ void effects_restart(int effect) {
 }
 
 void effects_advance(int delta) {
-    int e = (int)effect_idx + delta;
-    while (e < kEffectCount) {
-        e += kEffectCount;
+    int e = effect_idx;
+    while (delta > 0) {
+        e = effects_determine_next(e);
+        delta--;
     }
-    e = e % kEffectCount;
+    while (delta < 0) {
+        e = effects_determine_prev(e);
+        delta++;
+    }
     effects_restart(e);
 }
 
 void effects_reset(int a_led_count) {
     led_count = a_led_count;
-//    effects_restart(kEffectCount - 1);
-    effects_restart(kInitialEffect);
+
+    effect_first = kEffectMax;
+    effect_last = 0;
+    int effect = kEffectMax;
+    for (int i = 0; i < kStepCount; i++) {
+        if (R(effects_data[i][0]) == O_BEGIN_EFFECT) {
+            uint8_t e = R(effects_data[i][1]);
+            if (e < effect_first) {
+                effect_first = e;
+            }
+            if (e > effect_last) {
+                effect_last = e;
+            }
+        }
+    }
+
+    effects_restart((kInitialEffect == 0 ? effect_first : kInitialEffect));
 }
 
 static uint8_t apply_palette_transformations(uint8_t orig_color) {
@@ -355,21 +436,33 @@ static void set_pixel(uint8_t *pixels, int i, uint8_t color) {
     }
 }
 
+#define RARG(k) R(effects_data[step_idx][k])
+
 bool effects_exec_step(uint8_t *pixels) {
-    uint8_t *step = effects_data[effect_idx][step_idx++];
-    uint8_t op = step[0];
-    if (step_idx == kMaxStepCount) {
-        abort();
-    }
+    uint8_t op = RARG(0);
+    bool more = true;
+
+#if LOG_EXECUTION
+    char msg[] = "op  \n";
+    msg[3] = op;
+    LOGSTR(msg);
+#endif
 
     switch (op) {
-        case O_END:
-            effects_restart((effect_idx + 1) % kEffectCount);
-            return false;
-        case O_INIT:
-            pixel_count = (step[1] == 0 ? led_count : step[1]);
-            rendering_flags = step[2];
+        case O_BEGIN_EFFECT:
+            effect_idx = RARG(1);
+            pixel_count = (RARG(2) == 0 ? led_count : RARG(2));
+            rendering_flags = RARG(3);
             break;
+
+        case O_END_EFFECT:
+            effects_restart(effects_determine_next(effect_idx));
+            break;
+
+        case O_HALT:
+            LOGSTRLN("HALT");
+            abort();
+
         case O_ERASE_ALL:
             for (int i = 0; i < led_count; i++) {
                 pixels[i] = 0;
@@ -378,17 +471,19 @@ bool effects_exec_step(uint8_t *pixels) {
         case O_SET: {
             int count = MIN(pixel_count, kMaxArgCount);
             for (int i = 0; i < count; i++) {
-                set_pixel(pixels, i, step[1+i]);
+                set_pixel(pixels, i, RARG(1+i));
             }
-            return false;
+            more = false;
+            break;
         }
         case O_FILL_PERC: {
-            int s = pixel_count * step[2] / step[3];
-            int e = pixel_count * step[4] / step[5];
+            int s = pixel_count * RARG(2) / RARG(3);
+            int e = pixel_count * RARG(4) / RARG(5);
             for (int i = s; i < e; i++) {
-                set_pixel(pixels, i, step[1]);
+                set_pixel(pixels, i, RARG(1));
             }
-            return false;
+            more = false;
+            break;
         }
         case O_MAIN_LOOP:
             if (loop_depth + 1 >= kMaxLoopDepth) {
@@ -402,7 +497,7 @@ bool effects_exec_step(uint8_t *pixels) {
                 abort();
             }
             loop_depth++;
-            loop_counts[loop_depth-1] = step[1];
+            loop_counts[loop_depth-1] = RARG(1);
             break;
         case O_NEXT: {
             if (loop_depth == 0) {
@@ -422,7 +517,7 @@ bool effects_exec_step(uint8_t *pixels) {
             if (has_more_iterations) {
                 int nesting = 0;
                 for (step_idx--; step_idx > 0; step_idx--) {
-                    uint8_t op = effects_data[effect_idx][step_idx-1][0];
+                    uint8_t op = R(effects_data[step_idx][0]);
                     if (op == O_LOOP || op == O_MAIN_LOOP) {
                         if (nesting == 0) {
                             break;
@@ -438,40 +533,43 @@ bool effects_exec_step(uint8_t *pixels) {
             }
             break;
         }
-        case O_SKIP: {
+        case O_WAIT: {
             if (skip_count == 0) {
-                skip_count = MAX(1, step[1]);
+                skip_count = MAX(1, RARG(1));
             }
             skip_count--;
             if (skip_count > 0) {
                 step_idx--;
             }
-            return false;
+            more = false;
+            break;
         }
         case O_SPEED_MS:
-            params.next_tick_delay_ms = (uint32_t)step[1] * 100 + step[2];
+            params.next_tick_delay_ms = (uint32_t)RARG(1) * 100 + RARG(2);
             break;
         case O_SPEED_X:
-            params.next_tick_delay_ms = (uint32_t)kBaseSpeed * step[1] / step[2];
+            params.next_tick_delay_ms = (uint32_t)kBaseSpeed * RARG(1) / RARG(2);
             break;
         case O_PAL_ROTATE_RIGHT:
-            palette_rotation += step[1];
+            palette_rotation += RARG(1);
             palette_rotation = palette_rotation % kPalletteSize;
             break;
         case O_PAL_ROTATE_LEFT:
-            palette_rotation += (kPalletteSize - step[1]);
+            palette_rotation += (kPalletteSize - RARG(1));
             palette_rotation = palette_rotation % kPalletteSize;
             break;
         case O_PIX_ROTATE_RIGHT:
-            pixel_rotation += step[1];
+            pixel_rotation += RARG(1);
             break;
         case O_PIX_ROTATE_LEFT:
-            pixel_rotation -= step[1];
+            pixel_rotation -= RARG(1);
             break;
         default:
             abort();
     }
-    return true;
+
+    step_idx++;
+    return more;
 }
 
 void effects_tick(uint8_t *pixels, PARAMS *a_params) {
@@ -483,4 +581,9 @@ void effects_tick(uint8_t *pixels, PARAMS *a_params) {
     a_params->effect = effect_idx;
     a_params->step = step_idx;
 }
+
+#ifdef __cplusplus
+}
+#endif
+
 #endif

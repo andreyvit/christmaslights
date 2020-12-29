@@ -21,7 +21,8 @@ extern "C" {
 
 typedef struct {
     uint32_t next_tick_delay_ms;
-    uint8_t effect, step;
+    uint8_t effect;
+    uint16_t step;
 } PARAMS;
 
 void effects_reset(int led_count);
