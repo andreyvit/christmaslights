@@ -1,23 +1,19 @@
-#define ENABLE_WIFI 1
-#define ENABLE_SONAR 0
-#define ENABLE_BLUE_TRACE 0
-#define ENABLE_EFFECTS 1
-
+#include <Arduino.h>
 #include "config.h"
+#if ENABLE_EFFECTS
 #include "effects.h"
+#endif
 
+#if DEVICE_ESP8266
 #include <ESP8266WiFi.h>
+#endif
 
-#if ENABLE_WIFI 
+#if ENABLE_WIFI
 #include <ESP8266mDNS.h>
 #include <WiFiUdp.h>
 #include <ArduinoOTA.h>
 #include <ESP8266WebServer.h>
 #include <ESP8266HTTPUpdateServer.h>
-
-//#include <ESP8266WiFi.h>          //ESP8266 Core WiFi Library (you most likely already have this in your sketch)
-//#include <DNSServer.h>            //Local DNS Server used for redirecting all requests to the configuration portal
-//#include <WiFiManager.h>          //https://github.com/tzapu/WiFiManager WiFi Configuration Magic
 #endif
 
 #include <NeoPixelBus.h>
@@ -36,13 +32,14 @@ enum {
   PIN_SONAR_ECHO = 13, //D7,
 };
 
-// somehow, decreasing kLEDCount to 200 causes bottom LEDs to stop doing alpha blending (WTF)
-#define kLEDCount 300
-#define kActualLEDCount 200
-
 #define colorSaturation 255
 
+#if DEVICE_ESP8266
 NeoPixelBus<NeoGrbFeature, NeoEsp8266Dma800KbpsMethod> strip(kLEDCount); // GPI02 aka D4
+#else
+NeoPixelBus<NeoGrbFeature, Neo800KbpsMethod> strip(kLEDCount, PIN_LED_STRIP);
+#endif
+
 #if ENABLE_SONAR
 ESP8266Ultrasonic sonar(PIN_SONAR_TRIG, PIN_SONAR_ECHO);
 #endif
@@ -76,7 +73,7 @@ int blue_trace_pos = 150;
 Timer<200> blue_trace_timer;
 #endif
 
-#if ENABLE_WIFI 
+#if ENABLE_WIFI
 //WiFiManager wifiManager;
 ESP8266WebServer webServer(80);
 ESP8266HTTPUpdateServer updateServer;
@@ -150,7 +147,7 @@ Mover movers[] = {
 };
 #endif
 
-#if ENABLE_WIFI 
+#if ENABLE_WIFI
 void handleRoot(void) {
   unsigned long timings_sum = 0;
   int timings_count = sizeof(loop_timings) / sizeof(loop_timings[0]);
@@ -158,9 +155,9 @@ void handleRoot(void) {
     timings_sum += loop_timings[i];
   }
   unsigned timings_avg = (unsigned)((timings_sum + timings_count/2) / timings_count);
-  
+
   char temp[400];
-  snprintf(temp, sizeof(temp), 
+  snprintf(temp, sizeof(temp),
 "<!DOCTYPE html><html><head><meta http-equiv='refresh' content='2' />"
 "<style>* {margin: 0; padding: 0} body {font: 16px Helvetica, Arial, sans-serif; margin: 2em 4em; } p {margin-top: 0.5em;}</style>"
 "<body>"
@@ -171,7 +168,7 @@ void handleRoot(void) {
 "<p><a href='/update'>Update Firmware</a>"
 "</html>", deviceID, kActualLEDCount, params.effect, params.step, timings_avg);
   temp[sizeof(temp)-1] = 0;
-  
+
   webServer.send (200, "text/html", temp);
 }
 
@@ -182,13 +179,17 @@ void handleNotFound(void) {
 
 void setup()
 {
-  sprintf(deviceID, "LED_%08X", ESP.getChipId());
-
   Serial.begin(115200);
   //while (!Serial); // wait for serial attach
-  Serial.printf("Booting %s\n", deviceID);
 
-#if ENABLE_WIFI 
+#if DEVICE_ESP8266
+  sprintf(deviceID, "LED_%08X", ESP.getChipId());
+  Serial.printf("Booting %s\n", deviceID);
+#else
+  Serial.println(F("BOOT")); Serial.flush();
+#endif
+
+#if ENABLE_WIFI
 //  {
 //    wifiManager.autoConnect(ssid.c_str(), NULL);
 //  }
@@ -228,27 +229,20 @@ void setup()
 
   MDNS.begin(deviceID);
   MDNS.addService("http", "tcp", 80);
-#else
+#elif DEVICE_ESP8266
   WiFi.forceSleepBegin();
 #endif
-  
-  pinMode(LED_BUILTIN, OUTPUT);
-  
 
-    Serial.println();
-    Serial.println("Initializing...");
-    Serial.flush();
+  pinMode(LED_BUILTIN, OUTPUT);
+#if !DEVICE_ESP8266
+  pinMode(PIN_LED_STRIP, OUTPUT);
+#endif
+
+  Serial.println(F("INIT")); Serial.flush();
 
     // this resets all the neopixels to an off state
     strip.Begin();
     strip.Show();
-
-    Serial.println();
-    Serial.println("Running...");
-
-    //strip.SetPixelColor(0, red);
-    //strip.SetPixelColor(1, green);
-    //strip.SetPixelColor(2, blue);
 
     rotate_timer.start();
     watchdog_timer.start();
@@ -256,6 +250,7 @@ void setup()
     blue_trace_timer.start();
 #endif
 
+    Serial.println("SETUP");
 #if ENABLE_EFFECTS
     effects_reset(kActualLEDCount);
 #else
@@ -264,10 +259,11 @@ void setup()
     }
 #endif
 
-    bzero(next_pixels, kLEDCount * sizeof(pixels[0]));
 #if ENABLE_EFFECTS
+    bzero(next_pixels, kLEDCount * sizeof(pixels[0]));
     frame_timer.start();
 #endif
+    Serial.println(F("RUNNING")); Serial.flush();
 }
 
 bool state = false;
@@ -277,7 +273,7 @@ void loop()
 {
   unsigned long now = millis();
 
-#if ENABLE_WIFI 
+#if ENABLE_WIFI
   if (WiFi.status() == WL_CONNECTED) {
     if (!was_connected) {
       was_connected = true;
@@ -356,19 +352,28 @@ void loop()
 #if ENABLE_BLUE_TRACE
   if (blue_trace_timer.fired(now)) {
     blue_trace_pos = (blue_trace_pos + 1) % kActualLEDCount;
+#if DEVICE_ESP8266
     Serial.printf("blue at %d\n", blue_trace_pos);
+#else
+    Serial.print("BLUE at "); Serial.println(blue_trace_pos);
+#endif
   }
   strip.SetPixelColor(blue_trace_pos, blue);
 #endif
-  
+
   strip.Show();
 
   if (rotate_timer.fired(now)) {
-    //strip.RotateLeft(1);  
+    //strip.RotateLeft(1);
   }
   if (watchdog_timer.fired(now)) {
 #if ENABLE_EFFECTS
+#if DEVICE_ESP8266
     Serial.printf("Effect %02d step %02d\n", params.effect, params.step);
+#else
+    Serial.print("E"); Serial.print(params.effect);
+    Serial.print(" S"); Serial.println(params.step);
+#endif
 #endif
     digitalWrite(LED_BUILTIN, (state ? HIGH: LOW));
     state = !state;
@@ -378,4 +383,3 @@ void loop()
   loop_timings[loop_timing_index] = loop_timing;
   loop_timing_index = (loop_timing_index+1) % (sizeof(loop_timings) / sizeof(loop_timings[0]));
 }
-

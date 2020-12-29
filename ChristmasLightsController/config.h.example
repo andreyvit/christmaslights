@@ -1,2 +1,12 @@
 #define kWifiNetwork "MyWiFiName"
 #define kWifiPassword "secretpwd"
+
+#define kLEDCount 288
+#define kActualLEDCount kLEDCount
+#define kPalletteSize 4
+
+#define DEVICE_ESP8266 0
+#define ENABLE_WIFI 0
+#define ENABLE_SONAR 0
+#define ENABLE_BLUE_TRACE 0
+#define ENABLE_EFFECTS 1

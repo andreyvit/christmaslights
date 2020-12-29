@@ -1,4 +1,6 @@
+#if ENABLE_EFFECTS
 #include "effects.h"
+#include "config.h"
 #include <stdlib.h>
 #include <stdbool.h>
 
@@ -323,7 +325,7 @@ static uint8_t apply_palette_transformations(uint8_t orig_color) {
     if (orig_color == 0) {
         return 0;
     }
-    
+
     // palette_rotation == 1
     // 2 -> 3
     // 4 -> 1
@@ -336,13 +338,13 @@ static uint8_t apply_palette_transformations(uint8_t orig_color) {
 
 static void set_pixel(uint8_t *pixels, int i, uint8_t color) {
     color = apply_palette_transformations(color);
-    
+
     int rotation = pixel_rotation;
     while (rotation < 0) {
         rotation += pixel_count;
     }
     i = (i + rotation) % pixel_count;
-    
+
     pixels[i] = color;
     if (rendering_flags & RF_REPEATING) {
         i += pixel_count;
@@ -359,7 +361,7 @@ bool effects_exec_step(uint8_t *pixels) {
     if (step_idx == kMaxStepCount) {
         abort();
     }
-    
+
     switch (op) {
         case O_END:
             effects_restart((effect_idx + 1) % kEffectCount);
@@ -481,4 +483,4 @@ void effects_tick(uint8_t *pixels, PARAMS *a_params) {
     a_params->effect = effect_idx;
     a_params->step = step_idx;
 }
-
+#endif
