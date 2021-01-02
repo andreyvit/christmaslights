@@ -70,7 +70,7 @@ extern "C" {
 #endif
 
 
-static int led_count;
+static int available_led_count;
 
 static uint16_t effect_first, effect_last;
 static int effect_idx;
@@ -356,16 +356,10 @@ static int effects_determine_next(int effect) {
     return candidate;
 }
 
-void effects_restart(int effect) {
+void effects_goto_effect(int effect) {
     effect_idx = effect;
     step_idx = effects_find_start(effect);
     loop_depth = 0;
-    skip_count = 0;
-    pixel_count = led_count;
-    palette_rotation = 0;
-    pixel_rotation = 0;
-    effect_duration_ms = 0;
-    params.next_tick_delay_ms = kBaseSpeed;
 }
 
 void effects_advance(int delta) {
@@ -378,11 +372,11 @@ void effects_advance(int delta) {
         e = effects_determine_prev(e);
         delta++;
     }
-    effects_restart(e);
+    effects_goto_effect(e);
 }
 
-void effects_reset(int a_led_count) {
-    led_count = a_led_count;
+void effects_reset(int a_available_led_count) {
+    available_led_count = a_available_led_count;
 
     effect_first = kEffectMax;
     effect_last = 0;
@@ -399,7 +393,7 @@ void effects_reset(int a_led_count) {
         }
     }
 
-    effects_restart((kInitialEffect == 0 ? effect_first : kInitialEffect));
+    effects_goto_effect((kInitialEffect == 0 ? effect_first : kInitialEffect));
 }
 
 static uint8_t apply_palette_transformations(uint8_t orig_color) {
