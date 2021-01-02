@@ -22,6 +22,10 @@
 #endif
 #include "timer.h"
 
+#if ENABLE_BUTTONS
+#include "debouncer.h"
+#endif
+
 #define ENABLE_AUTO_ROTATE 0
 #define ENABLE_VERBOSE_LOGGING 1
 
@@ -33,6 +37,9 @@ enum {
   PIN_LED_STRIP = 2,
   PIN_SONAR_TRIG = 15, //D8,
   PIN_SONAR_ECHO = 13, //D7,
+#if ENABLE_BUTTONS
+  PIN_BUTTON_NEXT = 7,
+#endif
 };
 
 #define colorSaturation 255
@@ -90,6 +97,10 @@ uint8_t next_pixels[kLEDCount];
 PARAMS params;
 unsigned long cur_tick_time = 0;
 unsigned long next_tick_time = 0;
+#endif
+
+#if ENABLE_BUTTONS
+Debouncer<LOW, 10> debouncerNext;
 #endif
 
 #if !ENABLE_EFFECTS
@@ -246,6 +257,9 @@ void setup()
 #if !DEVICE_ESP8266
   pinMode(PIN_LED_STRIP, OUTPUT);
 #endif
+#if ENABLE_BUTTONS
+  pinMode(PIN_BUTTON_NEXT, INPUT_PULLUP);
+#endif
 
   Serial.println(F("INIT")); Serial.flush();
 
@@ -295,6 +309,15 @@ void log_statistics() {
   Serial.print(F(" LOOP="));
   Serial.print(compute_loop_timing_avg_ms());
 }
+
+#if ENABLE_BUTTONS
+void check_buttons(unsigned now) {
+  if (debouncerNext.triggered(digitalRead(PIN_BUTTON_NEXT), now)) {
+    Serial.println("NEXT");
+    effects_advance(1);
+  }
+}
+#endif
 
 void loop()
 {
@@ -414,6 +437,10 @@ void loop()
     log_statistics();
     Serial.println();
   }
+#endif
+
+#if ENABLE_BUTTONS
+  check_buttons(now);
 #endif
 
   unsigned loop_timing = millis() - now;
