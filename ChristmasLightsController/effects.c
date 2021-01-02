@@ -421,26 +421,13 @@ static void set_pixel(uint8_t *pixels, int i, uint8_t color) {
     i = (i + rotation) % pixel_count;
 
     pixels[i] = color;
-#if LOG_EXECUTION
-    LOGSTR("set_pixel i=");
-    LOGINT(i);
-    LOGSTR(" c=");
-    LOGINT(color);
-#endif
-    if (true || (rendering_flags & RF_REPEATING)) {
-#if LOG_EXECUTION
-        LOGSTR(" alc=");
-        LOGINT(available_led_count);
-#endif
+    if (rendering_flags & RF_REPEATING) {
         i += pixel_count;
         while (i < available_led_count) {
             pixels[i] = color;
             i += pixel_count;
         }
     }
-#if LOG_EXECUTION
-    LOGSTR("\n");
-#endif
 }
 
 #define RARG(k) R(effects_data[step_idx][k])
@@ -454,7 +441,7 @@ bool effects_exec_step(uint8_t *pixels) {
             effect_idx = RARG(1);
             pixel_count = (RARG(2) == 0 ? available_led_count : RARG(2));
             rendering_flags = RARG(3);
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("B pxc=");
             LOGINT(effect_idx);
             LOGSTR(" pxc=");
@@ -471,7 +458,7 @@ bool effects_exec_step(uint8_t *pixels) {
             break;
 
         case O_END_EFFECT:
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("E\n");
 #endif
             effects_goto_effect(effects_determine_next(effect_idx));
@@ -482,7 +469,7 @@ bool effects_exec_step(uint8_t *pixels) {
             abort();
 
         case O_ERASE_ALL:
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("ERASE\n");
 #endif
             for (int i = 0; i < available_led_count; i++) {
@@ -491,18 +478,18 @@ bool effects_exec_step(uint8_t *pixels) {
             break;
         case O_SET: {
             int count = MIN(pixel_count, kMaxArgCount);
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("SET");
 #endif
             for (int i = 0; i < count; i++) {
               uint8_t c = RARG(1+i);
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR(" ");
             LOGINT(c);
 #endif
                 set_pixel(pixels, i, c);
             }
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("\n");
 #endif
             more = false;
@@ -512,7 +499,7 @@ bool effects_exec_step(uint8_t *pixels) {
             int s = pixel_count * RARG(2) / RARG(3);
             int e = pixel_count * RARG(4) / RARG(5);
             uint8_t c = RARG(1);
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("FILL ");
             LOGINT(c);
             LOGSTR(" IN ");
@@ -533,7 +520,7 @@ bool effects_exec_step(uint8_t *pixels) {
             }
             loop_depth++;
             loop_counts[loop_depth-1] = kMainLoopCount;
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("LOOP MAIN\n");
 #endif
             break;
@@ -544,7 +531,7 @@ bool effects_exec_step(uint8_t *pixels) {
             uint8_t n = RARG(1);
             loop_depth++;
             loop_counts[loop_depth-1] = n;
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("LOOP ");
             LOGINT(n);
             LOGSTR("\n");
@@ -566,7 +553,7 @@ bool effects_exec_step(uint8_t *pixels) {
             }
 
             if (has_more_iterations) {
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("NEXT\n");
 #endif
                 int nesting = 0;
@@ -583,7 +570,7 @@ bool effects_exec_step(uint8_t *pixels) {
                     }
                 }
             } else {
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("NEXT (done)\n");
 #endif
                 loop_depth--;
@@ -594,7 +581,7 @@ bool effects_exec_step(uint8_t *pixels) {
             if (skip_count == 0) {
                 skip_count = MAX(1, RARG(1));
             }
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("WAIT ");
             LOGINT(skip_count);
             LOGSTR("\n");
@@ -608,7 +595,7 @@ bool effects_exec_step(uint8_t *pixels) {
         }
         case O_SPEED_MS:
             params.next_tick_delay_ms = (uint32_t)RARG(1) * 100 + RARG(2);
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("SPEED ");
             LOGINT(params.next_tick_delay_ms);
             LOGSTR("\n");
@@ -616,7 +603,7 @@ bool effects_exec_step(uint8_t *pixels) {
             break;
         case O_SPEED_X:
             params.next_tick_delay_ms = (uint32_t)kBaseSpeed * RARG(1) / RARG(2);
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("SPEED ");
             LOGINT(params.next_tick_delay_ms);
             LOGSTR("\n");
@@ -624,7 +611,7 @@ bool effects_exec_step(uint8_t *pixels) {
             break;
         case O_PAL_ROTATE_RIGHT: {
             uint8_t n = RARG(1);
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("PAL_R ");
             LOGINT(n);
             LOGSTR("\n");
@@ -635,7 +622,7 @@ bool effects_exec_step(uint8_t *pixels) {
         }
         case O_PAL_ROTATE_LEFT: {
             uint8_t n = RARG(1);
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("PAL_L ");
             LOGINT(n);
             LOGSTR("\n");
@@ -646,7 +633,7 @@ bool effects_exec_step(uint8_t *pixels) {
         }
         case O_PIX_ROTATE_RIGHT: {
             uint8_t n = RARG(1);
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("PX_R ");
             LOGINT(n);
             LOGSTR("\n");
@@ -656,7 +643,7 @@ bool effects_exec_step(uint8_t *pixels) {
         }
         case O_PIX_ROTATE_LEFT: {
             uint8_t n = RARG(1);
-#if LOG_EXECUTION
+#if TRACE_EXECUTION
             LOGSTR("PX_L ");
             LOGINT(n);
             LOGSTR("\n");
