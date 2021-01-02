@@ -22,6 +22,9 @@
 #endif
 #include "timer.h"
 
+#define ENABLE_AUTO_ROTATE 0
+#define ENABLE_VERBOSE_LOGGING 1
+
 unsigned loop_timings[32];
 unsigned loop_timing_index;
 char deviceID[64];
@@ -62,7 +65,9 @@ RgbColor colors[] = {
   HexColor(0x278330)
 };
 
+#if ENABLE_AUTO_ROTATE
 Timer<150> rotate_timer;
+#endif
 Timer<500> watchdog_timer;
 #if ENABLE_EFFECTS
 Timer<15> frame_timer;
@@ -147,14 +152,18 @@ Mover movers[] = {
 };
 #endif
 
-#if ENABLE_WIFI
-void handleRoot(void) {
+unsigned compute_loop_timing_avg_ms() {
   unsigned long timings_sum = 0;
   int timings_count = sizeof(loop_timings) / sizeof(loop_timings[0]);
   for (int i = 0; i < timings_count; i++) {
     timings_sum += loop_timings[i];
   }
-  unsigned timings_avg = (unsigned)((timings_sum + timings_count/2) / timings_count);
+  unsigned timings_avg = (unsigned)((timings_sum + timings_count/2) / timings_count);  
+}
+
+#if ENABLE_WIFI
+void handleRoot(void) {
+  unsigned timings_avg = compute_loop_timing_avg_ms();
 
   char temp[400];
   snprintf(temp, sizeof(temp),
@@ -244,7 +253,9 @@ void setup()
     strip.Begin();
     strip.Show();
 
+#if ENABLE_AUTO_ROTATE
     rotate_timer.start();
+#endif
     watchdog_timer.start();
 #if ENABLE_BLUE_TRACE
     blue_trace_timer.start();
@@ -272,8 +283,18 @@ void setup()
     Serial.println(F("RUNNING")); Serial.flush();
 }
 
-bool state = false;
 bool was_connected = false;
+
+bool activity_indicator_state = false;
+void toggle_activity_indicator() {
+  digitalWrite(LED_BUILTIN, (activity_indicator_state ? HIGH: LOW));
+  activity_indicator_state = !activity_indicator_state;
+}
+
+void log_statistics() {
+  Serial.print(F(" LOOP="));
+  Serial.print(compute_loop_timing_avg_ms());
+}
 
 void loop()
 {
@@ -330,8 +351,19 @@ void loop()
     memcpy(pixels, next_pixels, kLEDCount * sizeof(pixels[0]));
     // Serial.println("TICKING"); Serial.flush();
     effects_tick(next_pixels, &params);
-    // Serial.print("TICK E"); Serial.print(params.effect);
-    // Serial.print(" S"); Serial.println(params.step);
+    toggle_activity_indicator();
+    Serial.print("E"); Serial.print(params.effect);
+    Serial.print(" S"); Serial.print(params.step);
+    log_statistics();
+#if TRACE_FIRST_N_PIXELS > 0
+    Serial.print(F(" PX>"));
+    for (int i = 0; i < LOG_PIXELS; i++) {
+      uint8_t c = next_pixels[i];
+      Serial.print(" ");
+      Serial.print(c);
+    }
+#endif
+    Serial.println();
 
     cur_tick_time = now;
     next_tick_time = now + params.next_tick_delay_ms;
@@ -362,32 +394,27 @@ void loop()
 #if ENABLE_BLUE_TRACE
   if (blue_trace_timer.fired(now)) {
     blue_trace_pos = (blue_trace_pos + 1) % kActualLEDCount;
-#if DEVICE_ESP8266
-    Serial.printf("blue at %d\n", blue_trace_pos);
-#else
-    Serial.print("BLUE at "); Serial.println(blue_trace_pos);
-#endif
+    Serial.print(F("BLUE ")); Serial.println(blue_trace_pos);
   }
   strip.SetPixelColor(blue_trace_pos, blue);
 #endif
 
   strip.Show();
 
+#if ENABLE_AUTO_ROTATE
   if (rotate_timer.fired(now)) {
-    //strip.RotateLeft(1);
+    strip.RotateLeft(1);
   }
+#endif
+
+#if !ENABLE_EFFECTS
   if (watchdog_timer.fired(now)) {
-#if ENABLE_EFFECTS
-#if DEVICE_ESP8266
-    Serial.printf("Effect %02d step %02d\n", params.effect, params.step);
-#else
-    Serial.print("E"); Serial.print(params.effect);
-    Serial.print(" S"); Serial.println(params.step);
-#endif
-#endif
-    digitalWrite(LED_BUILTIN, (state ? HIGH: LOW));
-    state = !state;
+    toggle_activity_indicator();
+    Serial.print("ALIVE");
+    log_statistics();
+    Serial.println();
   }
+#endif
 
   unsigned loop_timing = millis() - now;
   loop_timings[loop_timing_index] = loop_timing;
