@@ -462,7 +462,7 @@ bool effects_exec_step(uint8_t *pixels) {
             LOGSTR("E\n");
 #endif
             effects_goto_effect(effects_determine_next(effect_idx));
-            break;
+            return true;  // must return to avoid incrementing step_idx!
 
         case O_HALT:
             LOGSTRLN("HALT");
