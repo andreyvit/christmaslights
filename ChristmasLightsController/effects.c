@@ -442,7 +442,7 @@ bool effects_exec_step(uint8_t *pixels) {
             pixel_count = (RARG(2) == 0 ? available_led_count : RARG(2));
             rendering_flags = RARG(3);
 #if TRACE_EXECUTION
-            LOGSTR("B pxc=");
+            LOGSTR("B ");
             LOGINT(effect_idx);
             LOGSTR(" pxc=");
             LOGINT(pixel_count);
